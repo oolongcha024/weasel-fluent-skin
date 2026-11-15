@@ -4,8 +4,10 @@ export type ColorFormat = 'abgr' | 'argb' | 'rgba';
 export function rimeColor(value: unknown, format: ColorFormat = 'abgr'): string {
   let hex: string;
   if (typeof value === 'number' && Number.isInteger(value)) {
-    if (value < -2147483648 || value > 0xffffffff) throw new Error('颜色超出 32 位范围');
-    hex = (value >>> 0).toString(16).padStart(value > 0xffffff || value < 0 ? 8 : 6, '0');
+    if (value < -2147483648 || value > 2147483647) throw new Error('十进制颜色超出有符号 32 位范围');
+    // Native _RimeGetColor makes integer scalars opaque before channel conversion.
+    const opaque = format === 'rgba' ? ((value << 8) | 0xff) >>> 0 : (value | 0xff000000) >>> 0;
+    hex = opaque.toString(16).padStart(8, '0');
   } else if (typeof value === 'string' && /^0x[\da-f]+$/i.test(value)) {
     hex = value.slice(2);
   } else if (typeof value === 'string' && /^-?\d+$/.test(value)) {
@@ -14,7 +16,8 @@ export function rimeColor(value: unknown, format: ColorFormat = 'abgr'): string 
     throw new Error('颜色应为 0x 十六进制值或 32 位整数');
   }
   if (hex.length === 3 || hex.length === 4) hex = [...hex].map((c) => c + c).join('');
-  if (hex.length !== 6 && hex.length !== 8) throw new Error('颜色需要 3、4、6 或 8 位十六进制数');
+  if (hex.length === 7) hex = hex.padStart(8, '0');
+  if (hex.length !== 6 && hex.length !== 8) throw new Error('颜色需要 3、4、6、7 或 8 位十六进制数');
   const opaque = hex.length === 6;
   const pairs = hex.match(/../g)!;
   let r: string, g: string, b: string, a: string;

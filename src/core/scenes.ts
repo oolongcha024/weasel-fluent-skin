@@ -16,6 +16,8 @@ export function validateScenes(input: unknown): { scenes: Scene[]; diagnostics: 
   for (const item of input) {
     if (!item || !/^[a-zA-Z0-9_-]+$/.test(item.id) || ids.has(item.id) || typeof item.name !== 'string' || typeof item.preedit !== 'string'
       || (item.highlightedPreedit !== undefined && typeof item.highlightedPreedit !== 'string')
+      || (item.currentPage !== undefined && (!Number.isInteger(item.currentPage) || item.currentPage < 0))
+      || (item.isLastPage !== undefined && typeof item.isLastPage !== 'boolean')
       || !Array.isArray(item.candidates) || !item.candidates.length || !Number.isInteger(item.highlighted)
       || item.highlighted < 0 || item.highlighted >= item.candidates.length
       || item.candidates.some((c: unknown) => !c || typeof (c as { text?: unknown }).text !== 'string'

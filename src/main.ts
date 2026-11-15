@@ -1,5 +1,5 @@
 import './style.css';
-import { renderCandidate, inspectRender } from './render/candidate';
+import { renderCandidate, inspectRender, refreshCandidateLayout } from './render/candidate';
 import { flatten } from './core/patch';
 import type { BrowserReport, Diagnostic, InputSnapshot, Origin } from './core/types';
 
@@ -187,6 +187,8 @@ async function render(): Promise<BrowserReport | null> {
   const root = renderCandidate(input.config, scheme, scene);
   $('preview').replaceChildren(root);
   await document.fonts.ready;
+  if (token !== renderId) return null;
+  refreshCandidateLayout(root);
   await nextFrame(); await nextFrame();
   if (token !== renderId) return null;
   const report = inspectRender(root, input.config, scheme, scene, input.sha256);

@@ -163,3 +163,45 @@ test('custom scene validation rejects duplicates, invalid index and nontext fiel
   assert.equal(validateScenes([scene]).diagnostics.length, 0);
   for (const value of [[], [scene, scene], [{ ...scene, highlighted: 5 }], [{ ...scene, candidates: [{ text: '你', comment: 42 }] }]]) assert.ok(validateScenes(value).diagnostics.length);
 });
+
+// Native contracts: librime 1.13.1 config_compiler.cc / config_types.h;
+// Weasel 0.17.4 RimeWithWeasel.cpp::_RimeGetColor / LoadWeaselUIStyle.
+test('patch keys follow native map ordering, including overlapping assignments', () => {
+  for (const source of [
+    'patch:\n  style/font_point: 24\n  style/+: { font_point: 12 }\n',
+    'patch:\n  style/+: { font_point: 12 }\n  style/font_point: 24\n',
+  ]) assert.equal(resolveConfig(source, defaults).style.font_point, 24);
+});
+
+test('string append, force replacement and null map merges follow native operators', () => {
+  const appended = resolveConfig('patch:\n  style/font_face/+: ", Noto Sans"\n', defaults);
+  assert.equal(appended.style.font_face, 'Microsoft YaHei, Noto Sans');
+  const replaced = resolveConfig('patch:\n  style/+:\n    layout/=: { margin_x: 20 }\n', defaults);
+  assert.equal(replaced.style.layout.margin_x, 20);
+  assert.equal(replaced.style.layout.min_width, 0);
+  const unchanged = resolveConfig('patch:\n  style/+: { layout: null, font_point: null }\n', defaults);
+  assert.equal(unchanged.style.font_point, 14);
+  assert.equal(unchanged.style.layout.min_width, 160);
+  assert.equal(resolveConfig('patch:\n  style/font_face/+: [not-a-string]\n', defaults).ok, false);
+});
+
+test('merge-tree keys are literal nodes, not accidentally interpreted as paths', () => {
+  const c = resolveConfig('patch:\n  style/+:\n    layout/margin_x: 99\n', defaults);
+  assert.equal(c.style.layout.margin_x, 12);
+  assert.ok(c.diagnostics.some((d) => d.code === 'unsupported'));
+});
+
+test('missing window corner radius falls back to round_corner', () => {
+  const c = resolveConfig('patch:\n  style:\n    color_scheme: aqua\n    layout: { round_corner: 12 }\n', defaults);
+  assert.equal(c.style.layout.corner_radius, 12);
+  assert.equal(c.origins['style/layout/corner_radius'], 'derived');
+});
+
+test('native decimal colors are made opaque and seven hex digits preserve alpha', () => {
+  assert.equal(rimeColor(287454020, 'rgba'), '#223344ff');
+  assert.equal(rimeColor('287454020', 'rgba'), '#223344ff');
+  assert.equal(rimeColor(0x10223344, 'argb'), '#223344ff');
+  assert.equal(rimeColor('0x1234567', 'argb'), '#23456701');
+  assert.equal(rimeColor('0x1234567', 'abgr'), '#67452301');
+  assert.equal(rimeColor('0x1234567', 'rgba'), '#01234567');
+});

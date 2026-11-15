@@ -1,3 +1,5 @@
+import type { PreviewGeometry } from './layout';
+
 export type Dict = Record<string, unknown>;
 export type Origin = 'user' | 'default' | 'runtime' | 'derived';
 export interface Diagnostic {
@@ -46,6 +48,7 @@ export interface Candidate { text: string; comment?: string; label?: string }
 export interface Scene {
   id: string; name: string; preedit: string; highlightedPreedit?: string;
   highlighted: number; candidates: Candidate[];
+  currentPage?: number; isLastPage?: boolean;
 }
 export interface InputSnapshot {
   file: string;
@@ -67,4 +70,5 @@ export interface BrowserReport {
   viewport: { width: number; height: number; devicePixelRatio: number };
   diagnostics: Diagnostic[];
   html: string;
+  geometry: PreviewGeometry | null;
 }

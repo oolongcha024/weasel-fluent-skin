@@ -33,17 +33,21 @@ test('capture CLI creates a frozen, reproducible bundle and fails without stale 
 `;
     await writeFile(input, source);
     await writeFile(scenes, JSON.stringify([{ id: 'test', name: 'Test', preedit: 'ni', highlighted: 0, candidates: [{ text: '<img src=x>', comment: '注释' }] }]));
-    const success = await run(['--config', input, '--scenes', scenes, '--out', out]);
+    const success = await run(['--config', input, '--scenes', scenes, '--out', out, '--dpr', '1.5']);
     assert.equal(success.code, 0, success.output);
     const [successDir] = await readdir(out);
     const manifest = JSON.parse(await readFile(join(out, successDir, 'manifest.json'), 'utf8'));
     assert.equal(manifest.status, 'complete');
     assert.equal(manifest.input.sha256, sha256(source));
     assert.equal(manifest.screenshots.length, 2);
+    assert.equal(manifest.deviceScaleFactor, 1.5);
+    assert.equal(manifest.layoutBasis, 'weasel-0.17.4');
     for (const shot of manifest.screenshots) {
       const report = JSON.parse(await readFile(join(out, successDir, shot.report), 'utf8'));
       assert.equal(report.sha256, manifest.input.sha256);
       assert.ok(report.bounds.width > 0);
+      assert.equal(report.geometry.density, 1.5);
+      assert.equal(report.geometry.basis, 'weasel-0.17.4');
       assert.ok(report.html.includes('&lt;img src=x&gt;'));
       assert.ok(!report.html.includes('<img src=x>'));
       assert.ok((await readFile(join(out, successDir, shot.html), 'utf8')).includes('<style>'));

@@ -1,5 +1,5 @@
 import { composite, rimeColor } from './color';
-import { applyPatch, flatten } from './patch';
+import { applyPatch, flatten, pathSegment } from './patch';
 import { isMap, readYaml } from './yaml';
 import type { ConfigResult, Diagnostic, Dict, Layout, Origin, Scheme, Style } from './types';
 
@@ -41,7 +41,7 @@ function resolveScheme(id: string, raw: Dict, allOrigins: Record<string, Origin>
   if (!validFormat) diagnostics.push({ level: 'error', code: 'color-format', path: `preset_color_schemes/${id}/color_format`, message: `不支持颜色格式 ${format}。` });
   const colors: Record<string, string> = {}, origins: Record<string, Origin> = {};
   for (const [key, fallback] of Object.entries(COLOR_FALLBACKS)) {
-    const path = `preset_color_schemes/${id}/${key}`;
+    const path = `preset_color_schemes/${pathSegment(id)}/${pathSegment(key)}`;
     if (raw[key] !== undefined) {
       try { colors[key] = rimeColor(raw[key], validFormat ? format : 'abgr'); }
       catch (e) { diagnostics.push({ level: 'error', code: 'color', path, message: `${key}：${(e as Error).message}` }); }
@@ -54,7 +54,7 @@ function resolveScheme(id: string, raw: Dict, allOrigins: Record<string, Origin>
     }
   }
   for (const key of Object.keys(raw)) {
-    const path = `preset_color_schemes/${id}/${key}`;
+    const path = `preset_color_schemes/${pathSegment(id)}/${pathSegment(key)}`;
     if (!(key in COLOR_FALLBACKS) && !['name', 'author', 'color_format'].includes(key) && allOrigins[path] === 'user') {
       diagnostics.push({ level: 'warning', code: 'unsupported', path, message: `尚未支持配色字段 ${key}，未用于渲染。` });
     }
@@ -122,11 +122,12 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
     let alias: string | undefined;
     if (key === 'border_width' && values['style/layout/border'] !== undefined) alias = 'border';
     if (key === 'round_corner' && values['style/layout/hilited_corner_radius'] !== undefined) alias = 'hilited_corner_radius';
+    if (key === 'corner_radius' && values['style/layout/corner_radius'] == null && values['style/layout/round_corner'] != null) alias = 'round_corner';
     if (key.startsWith('hilite_padding_') && values[`style/layout/${key}`] === undefined) alias = 'hilite_padding';
     const path = `style/layout/${key}`;
     layout[key] = alias && values[`style/layout/${alias}`] !== undefined
       ? number(`style/layout/${alias}`, undefined, signed) : number(path, undefined, signed);
-    if (alias) origins[path] = origins[`style/layout/${alias}`] ?? 'runtime';
+    if (alias) origins[path] = key === 'corner_radius' ? 'derived' : origins[`style/layout/${alias}`] ?? 'runtime';
   }
   layout.align_type = enumValue('style/layout/align_type', ['top', 'center', 'bottom'], 'bottom');
   const style: Style = {
@@ -174,7 +175,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
     if (path.includes('__include') || path.includes('__patch')) diagnostics.push({ level: 'warning', code: 'dependency', path, message: '未解析跨文件依赖，相关样式可能不完整。' });
   }
   if (type.includes('fullscreen')) diagnostics.push({ level: 'warning', code: 'unsupported', path: 'style/layout/type', message: '尚未模拟全屏候选窗口。' });
-  if (layout.max_width || layout.max_height) diagnostics.push({ level: 'warning', code: 'approximation', path: 'style/layout', message: '尺寸限制使用浏览器换行，可能与小狼毫的折叠布局不同。' });
+  if (layout.max_width || layout.max_height) diagnostics.push({ level: 'warning', code: 'approximation', path: 'style/layout', message: '候选行按原生矩形规则排列；单条文字的折行由浏览器测量，可能与 DirectWrite 不同。' });
   for (const key of ['font_face', 'label_font_face', 'comment_font_face'] as const) {
     if (style[key].split(',').some((f) => f.trim().split(':').length > 2)) diagnostics.push({ level: 'warning', code: 'font-range', path: `style/${key}`, message: '字体码位范围未模拟；浏览器使用字体回退链。' });
   }

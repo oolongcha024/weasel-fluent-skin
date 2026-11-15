@@ -15,7 +15,7 @@ async function capture() {
   await mkdir(directory, { recursive: true });
   const manifest: Record<string, unknown> = {
     schemaVersion: 1, status: 'failed', runId, createdAt: new Date().toISOString(),
-    viewport, deviceScaleFactor: 1, zoom: 1, screenshots: [], diagnostics: [],
+    viewport, deviceScaleFactor: args.dpr, zoom: 1, layoutBasis: 'weasel-0.17.4', screenshots: [], diagnostics: [],
   };
   let instance: Awaited<ReturnType<typeof startServer>> | undefined;
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
@@ -42,7 +42,7 @@ async function capture() {
     if (schemes.some((id) => snapshot.config.schemes[id].diagnostics.some((d) => d.level === 'error'))) throw new Error('指定配色有无效设置，未生成截图。');
     browser = await chromium.launch();
     manifest.browser = browser.version();
-    const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'light', locale: 'zh-CN', reducedMotion: 'reduce' });
+    const page = await browser.newPage({ viewport, deviceScaleFactor: args.dpr, colorScheme: 'light', locale: 'zh-CN', reducedMotion: 'reduce' });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${url}/?capture=1`, { waitUntil: 'networkidle' });
