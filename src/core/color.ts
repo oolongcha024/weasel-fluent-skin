@@ -9,7 +9,7 @@ export function rimeColor(value: unknown, format: ColorFormat = 'abgr'): string 
     const opaque = format === 'rgba' ? ((value << 8) | 0xff) >>> 0 : (value | 0xff000000) >>> 0;
     hex = opaque.toString(16).padStart(8, '0');
   } else if (typeof value === 'string' && /^0x[\da-f]+$/i.test(value)) {
-    hex = value.slice(2);
+    hex = value.slice(2, 10); // _RimeGetColor reads at most eight hex digits.
   } else if (typeof value === 'string' && /^-?\d+$/.test(value)) {
     return rimeColor(Number(value), format);
   } else {

@@ -205,3 +205,41 @@ test('native decimal colors are made opaque and seven hex digits preserve alpha'
   assert.equal(rimeColor('0x1234567', 'abgr'), '#67452301');
   assert.equal(rimeColor('0x1234567', 'rgba'), '#01234567');
 });
+
+test('replaced style uses native empty-family and disabled-secondary-font defaults', () => {
+  const c = resolveConfig('patch:\n  style: { color_scheme: aqua }\n', defaults);
+  assert.equal(c.style.font_face, '');
+  assert.equal(c.style.font_point, 12);
+  assert.equal(c.style.label_font_point, 0);
+  assert.equal(c.style.comment_font_point, 0);
+  const negative = resolveConfig('patch:\n  style: { color_scheme: aqua, font_point: -20 }\n', defaults);
+  assert.equal(negative.style.font_point, 12);
+  assert.equal(negative.style.label_font_point, 20);
+  assert.equal(negative.style.comment_font_point, 20);
+});
+
+test('null aliases fall through to the alternative native keys', () => {
+  const c = resolveConfig(`patch:
+  style/layout:
+    border: null
+    border_width: 3
+    hilited_corner_radius: null
+    round_corner: 9
+    hilite_padding_x: null
+    hilite_padding: 5
+`, defaults);
+  assert.equal(c.style.layout.border_width, 3);
+  assert.equal(c.style.layout.round_corner, 9);
+  assert.equal(c.style.layout.hilite_padding_x, 5);
+  assert.equal(rimeColor('0xff1122334455', 'argb'), '#112233ff');
+});
+
+test('font-range diagnostics distinguish numeric ranges from multiple style tokens', () => {
+  const weightOnly = resolveConfig('patch:\n  style/font_face: "Noto Sans:semi_bold:italic"\n', defaults);
+  assert.ok(!weightOnly.diagnostics.some((d) => d.code === 'font-range'));
+  const numericRange = resolveConfig('patch:\n  style/font_face: "Noto Sans:30"\n', defaults);
+  assert.ok(numericRange.diagnostics.some((d) => d.code === 'font-range'));
+  const scene = { id: 'one', name: 'One', preedit: 'ni', highlighted: 0, candidates: [{ text: '你' }] };
+  assert.ok(validateScenes([{ ...scene, commitPreview: 123 }]).diagnostics.length);
+  assert.ok(validateScenes([{ ...scene, candidates: Array.from({ length: 101 }, () => ({ text: '字' })) }]).diagnostics.length);
+});

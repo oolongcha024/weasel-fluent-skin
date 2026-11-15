@@ -100,3 +100,41 @@ test('pager requires both colors and uses separate first/last-page state in the 
   const both = calculateLayout(s, { ...colors, prevpage_color: '#ff0000ff', nextpage_color: '#ff0000ff' }, scene, measure);
   assert.ok(both.pages);
 });
+
+test('vertical annotations move right by the extra minimum-width space', () => {
+  const s = style({ horizontal: false });
+  const multiple = { ...scene, candidates: [{ text: '字', comment: 'abc' }, { text: '字', comment: 'a' }] };
+  const original = calculateLayout(s, colors, multiple, measure);
+  s.layout.min_width = original.width + 100;
+  const wider = calculateLayout(s, colors, multiple, measure);
+  assert.equal(wider.candidates[0].comment!.rect.x - original.candidates[0].comment!.rect.x, 100);
+  assert.equal(wider.candidates[0].text.rect.x, original.candidates[0].text.rect.x);
+});
+
+test('edge-attached vertical surfaces use window radius only at outside corners', () => {
+  const s = style({ horizontal: false });
+  Object.assign(s.layout, { margin_x: 6, margin_y: 4, hilite_padding_x: 6, hilite_padding_y: 4, round_corner: 2, corner_radius: 8 });
+  const multiple = { ...scene, candidates: [{ text: '一' }, { text: '二' }, { text: '三' }] };
+  const g = calculateLayout(s, colors, multiple, measure);
+  assert.deepEqual(g.candidates.map((c) => c.rounding.corners), [[true, true, false, false], [false, false, false, false], [false, false, true, true]]);
+  assert.ok(g.candidates.every((c) => c.rounding.hemispherical && c.rounding.radius === 8));
+  const separated = style({ horizontal: false });
+  assert.ok(calculateLayout(separated, colors, multiple, measure).candidates.every((c) => !c.rounding.hemispherical && c.rounding.radius === 4));
+});
+
+test('native preedit allocation preserves the 0.17.4 range-end substring quirk', () => {
+  const s = style({ inline_preedit: false });
+  const g = calculateLayout(s, colors, { ...scene, preedit: 'abXYZcd', highlightedPreedit: 'XYZ' }, measure);
+  const [before, selected, after] = g.preedit!.runs;
+  assert.equal(before.text, 'ab'); assert.equal(selected.text, 'XYZ'); assert.equal(after.text, 'cd');
+  assert.equal(selected.rect.width, 5 * 16); // GetPreeditSize measures substr(2, 5).
+});
+
+test('narrow vertical preedit does not inherit the pager glyph width', () => {
+  const s = style({ vertical_text: true, inline_preedit: false, vertical_text_left_to_right: true });
+  const c = { ...colors, prevpage_color: '#111111ff', nextpage_color: '#111111ff' };
+  const g = calculateLayout(s, c, { ...scene, preedit: 'a', highlightedPreedit: undefined }, (text, role) =>
+    text === '<' || text === '>' ? { width: 40, height: 20 } : measure(text, role));
+  assert.equal(g.candidates[0].bounds.x - g.preedit!.bounds.x, 16 + s.layout.spacing);
+  assert.equal(g.pages!.previous.width, 40);
+});

@@ -1,6 +1,9 @@
 import type { BrowserReport, ConfigResult, Diagnostic, Scene, Scheme } from '../core/types';
 import { calculateLayout, type PreviewGeometry, type Rect, type TextRole, type TextRun } from '../core/layout';
 import { availableFonts, fontSpec } from './fonts';
+import { preeditContent } from '../core/text';
+import { roundShape } from '../core/rounding';
+import { borderRadius, shadowSurface } from './surface';
 import './candidate.css';
 
 const geometries = new WeakMap<HTMLElement, PreviewGeometry>();
@@ -30,13 +33,19 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
     if (cache.has(key)) return cache.get(key)!;
     setFont(probe, ...roleFont(role));
     const limit = vertical ? s.layout.max_height : s.layout.max_width;
-    Object.assign(probe.style, { writingMode: vertical ? 'vertical-rl' : 'horizontal-tb',
+    Object.assign(probe.style, { writingMode: vertical ? s.vertical_text_left_to_right ? 'vertical-lr' : 'vertical-rl' : 'horizontal-tb',
       maxWidth: !vertical && limit ? `${Math.trunc(limit * density) / density}px` : 'none',
       maxHeight: vertical && limit ? `${Math.trunc(limit * density) / density}px` : 'none',
-      whiteSpace: limit ? 'pre-wrap' : 'pre', overflowWrap: limit ? 'anywhere' : 'normal' });
+      whiteSpace: limit ? 'pre-wrap' : 'pre', overflowWrap: 'normal', wordBreak: 'normal' });
     probe.textContent = text || '\u200b';
     const box = probe.getBoundingClientRect();
-    const size = { width: Math.ceil(box.width * density - 1e-6), height: Math.ceil(box.height * density - 1e-6) };
+    // A constrained CSS block reports max-width even when the line is shorter,
+    // and hides overlong unbreakable words from its box size. DirectWrite uses
+    // widthIncludingTrailingWhitespace, so measure the inline content too.
+    const range = document.createRange(); range.selectNodeContents(probe);
+    const textBox = range.getBoundingClientRect();
+    const size = { width: Math.ceil((vertical ? box.width : textBox.width) * density - 1e-6),
+      height: Math.ceil((vertical ? textBox.height : box.height) * density - 1e-6) };
     cache.set(key, size); return size;
   };
   let geometry: PreviewGeometry;
@@ -49,7 +58,6 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
     left: px(box.x - (relative?.x ?? 0)), top: px(box.y - (relative?.y ?? 0)),
     width: px(Math.max(0, box.width)), height: px(Math.max(0, box.height)),
   });
-  const shadow = (key: string) => l.shadow_radius > 0 ? `${px(l.shadow_offset_x)} ${px(l.shadow_offset_y)} ${px(l.shadow_radius)} ${colors[key]}` : 'none';
   const stroke = (node: HTMLElement, color: string) => {
     // Native strokes paint around a rectangle without consuming layout space.
     node.style.outline = `${px(l.border_width)} solid ${color}`;
@@ -61,18 +69,29 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
   win.dataset.density = String(density);
   setFont(win, s.font_face, s.font_point);
   Object.assign(win.style, { width: px(geometry.width), height: px(geometry.height),
-    backgroundColor: colors.back_color, color: colors.candidate_text_color,
-    borderRadius: px(l.corner_radius), boxShadow: shadow('shadow_color') });
+    color: colors.candidate_text_color });
   if (s.layout.margin_x < 0 || s.layout.margin_y < 0) win.style.display = 'none';
+  const backgrounds = element('div', 'ime-backgrounds');
+  const windowBox = { x: 0, y: 0, width: geometry.width, height: geometry.height };
+  const windowShadow = shadowSurface(windowBox, colors.shadow_color, l, density, l.corner_radius);
+  if (windowShadow) backgrounds.append(windowShadow);
+  const windowSurface = element('div', 'ime-window-surface'); place(windowSurface, windowBox);
+  windowSurface.style.backgroundColor = colors.back_color;
+  windowSurface.style.borderRadius = borderRadius(windowBox, roundShape(l.corner_radius), density);
+  stroke(windowSurface, colors.border_color); backgrounds.append(windowSurface);
   const content = element('div', 'ime-content');
-  content.style.borderRadius = px(l.corner_radius);
   const textNode = (item: TextRun, className: string, color: string, relative?: Rect) => {
     const node = element('span', className, item.text);
     setFont(node, ...roleFont(item.role)); place(node, item.rect, relative);
     node.style.color = colors[color];
     node.style.writingMode = vertical ? 'vertical-rl' : 'horizontal-tb';
+    node.style.textOrientation = 'mixed';
+    if (vertical && s.vertical_text_left_to_right) node.style.writingMode = 'vertical-lr';
     if (vertical ? s.layout.max_height : s.layout.max_width) {
-      node.style.whiteSpace = 'pre-wrap'; node.style.overflowWrap = 'anywhere';
+      node.style.whiteSpace = 'pre-wrap'; node.style.overflowWrap = 'normal';
+      // 0.17.4 defines wrapping_preedit but init_font uses `wrapping` for
+      // every format. Its unused `wrap` parameter does not enable break-all.
+      node.style.wordBreak = 'normal';
     }
     return node;
   };
@@ -82,20 +101,43 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
     const composition = element('div', 'ime-preedit'); place(composition, pre.bounds);
     if (pre.background) {
       const surface = element('span', 'ime-preedit-surface');
-      place(surface, pre.background, pre.bounds);
+      place(surface, pre.background);
       surface.style.backgroundColor = colors.hilited_back_color;
-      surface.style.borderRadius = px(l.round_corner); surface.style.boxShadow = shadow('hilited_shadow_color');
-      composition.append(surface);
+      surface.style.borderRadius = borderRadius(pre.background, pre.rounding, density);
+      const shadow = shadowSurface(pre.background, colors.hilited_shadow_color, l, density);
+      if (shadow) backgrounds.append(shadow);
+      backgrounds.append(surface);
     }
     for (const item of pre.runs) composition.append(textNode(item, item.highlighted ? 'ime-preedit-highlight' : 'ime-preedit-plain', item.highlighted ? 'hilited_text_color' : 'text_color', pre.bounds));
     header.append(composition);
     if (geometry.pages) {
       const pages = element('span', 'ime-pager');
-      pages.append(textNode({ text: '<', role: 'text', rect: geometry.pages.previous }, 'ime-page', scene.currentPage ? 'prevpage_color' : 'text_color'),
-        textNode({ text: '>', role: 'text', rect: geometry.pages.next }, 'ime-page', scene.isLastPage ? 'text_color' : 'nextpage_color'));
+      pages.append(textNode({ text: '<', role: 'preedit', rect: geometry.pages.previous }, 'ime-page', scene.currentPage ? 'prevpage_color' : 'text_color'),
+        textNode({ text: '>', role: 'preedit', rect: geometry.pages.next }, 'ime-page', scene.isLastPage ? 'text_color' : 'nextpage_color'));
       header.append(pages);
     }
     content.append(header);
+  }
+  // All ordinary shadows precede ordinary surfaces, then the highlighted
+  // shadow/surface. Text is drawn in a separate pass, as in WeaselPanel.
+  const ordinary = geometry.candidates.filter((c) => c.index !== scene.highlighted);
+  for (const item of ordinary) {
+    const shadow = shadowSurface(item.background, colors.candidate_shadow_color, l, density);
+    if (shadow) backgrounds.append(shadow);
+  }
+  for (const item of [...ordinary, geometry.candidates[scene.highlighted]]) {
+    const on = item.index === scene.highlighted;
+    if (on) {
+      const shadow = shadowSurface(item.background, colors.hilited_candidate_shadow_color, l, density);
+      if (shadow) backgrounds.append(shadow);
+    }
+    const surface = element('span', 'ime-candidate-surface'); place(surface, item.background);
+    surface.dataset.index = String(item.index);
+    surface.setAttribute('aria-hidden', 'true');
+    surface.style.backgroundColor = colors[on ? 'hilited_candidate_back_color' : 'candidate_back_color'];
+    surface.style.borderRadius = borderRadius(item.background, item.rounding, density);
+    stroke(surface, colors[on ? 'hilited_candidate_border_color' : 'candidate_border_color']);
+    backgrounds.append(surface);
   }
   const candidates = element('div', 'ime-candidates');
   for (const item of geometry.candidates) {
@@ -103,13 +145,6 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
     const candidate = element('div', 'ime-candidate'); place(candidate, item.bounds);
     candidate.dataset.row = String(item.row);
     candidate.setAttribute('role', 'option'); candidate.setAttribute('aria-selected', String(on));
-    const surface = element('span', 'ime-candidate-surface'); place(surface, item.background, item.bounds);
-    surface.setAttribute('aria-hidden', 'true');
-    surface.style.backgroundColor = colors[on ? 'hilited_candidate_back_color' : 'candidate_back_color'];
-    surface.style.borderRadius = px(l.round_corner);
-    stroke(surface, colors[on ? 'hilited_candidate_border_color' : 'candidate_border_color']);
-    if (on) surface.style.boxShadow = shadow('hilited_candidate_shadow_color');
-    candidate.append(surface);
     if (on && geometry.mark) {
       const mark = element('span', geometry.mark.text ? 'ime-mark-text' : 'ime-mark', geometry.mark.text);
       mark.setAttribute('aria-hidden', 'true'); place(mark, geometry.mark.rect, item.bounds);
@@ -122,13 +157,10 @@ function draw(root: HTMLElement, config: ConfigResult, scheme: Scheme, scene: Sc
     if (item.comment) candidate.append(textNode(item.comment, 'ime-comment', on ? 'hilited_comment_text_color' : 'comment_text_color', item.bounds));
     candidates.append(candidate);
   }
-  content.append(candidates); win.append(content);
-  const border = element('div', 'ime-window-border'); border.style.borderRadius = px(l.corner_radius); stroke(border, colors.border_color); win.append(border);
+  content.append(candidates); win.append(backgrounds, content);
   root.replaceChildren();
   if (s.inline_preedit) {
-    let preeditText = scene.preedit;
-    if (s.preedit_type === 'preview') preeditText = scene.candidates[scene.highlighted].text;
-    if (s.preedit_type === 'preview_all') preeditText = scene.candidates.map((c) => c.text).join(' ');
+    const preeditText = preeditContent(s, scene).text;
     const editor = element('div', 'ime-editorline');
     editor.append(document.createTextNode('今天，试着写下 '), element('span', 'ime-inline-composition', preeditText), element('span', 'ime-caret'));
     root.append(editor);

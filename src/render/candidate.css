@@ -1,13 +1,15 @@
 .ime-preview { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; width: max-content; }
 .ime-window { position: relative; flex-shrink: 0; isolation: isolate; white-space: pre; line-height: normal; }
 .ime-window *, .ime-measure { box-sizing: content-box; font-synthesis: none; line-height: normal; }
-.ime-content { position: absolute; inset: 0; overflow: hidden; }
-.ime-window-border { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.ime-content { position: absolute; inset: 0; overflow: visible; z-index: 1; }
+.ime-backgrounds { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.ime-window-surface, .ime-shadow { position: absolute; pointer-events: none; }
 .ime-header, .ime-candidates, .ime-pager { position: absolute; inset: 0; pointer-events: none; }
 .ime-candidate, .ime-preedit, .ime-label, .ime-text, .ime-comment, .ime-preedit-plain, .ime-preedit-highlight, .ime-page { position: absolute; white-space: pre; }
-.ime-candidate-surface, .ime-preedit-surface { position: absolute; pointer-events: none; z-index: 0; }
-.ime-label, .ime-text, .ime-comment, .ime-preedit-plain, .ime-preedit-highlight, .ime-page { z-index: 2; }
+.ime-candidate-surface, .ime-preedit-surface { position: absolute; pointer-events: none; }
+.ime-label, .ime-text, .ime-comment, .ime-preedit-plain, .ime-preedit-highlight, .ime-page { z-index: 2; align-content: center; }
 .ime-mark, .ime-mark-text { position: absolute; white-space: pre; z-index: 1; }
+.ime-mark-text { z-index: 3; }
 .ime-measure { position: fixed; left: -100000px; top: 0; display: inline-block; width: max-content; visibility: hidden; margin: 0; padding: 0; border: 0; white-space: pre; }
 .ime-editorline { font: 15px/1.6 'Noto Sans CJK SC', 'Microsoft YaHei UI', sans-serif; color: var(--editor-ink, #555e6d); }
 .ime-inline-composition { text-decoration: underline; text-underline-offset: 4px; }

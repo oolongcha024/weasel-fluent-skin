@@ -4,9 +4,9 @@ import { isMap, readYaml } from './yaml';
 import type { ConfigResult, Diagnostic, Dict, Layout, Origin, Scheme, Style } from './types';
 
 const STYLE_RUNTIME = {
-  font_face: 'Microsoft YaHei', label_font_face: '', comment_font_face: '',
-  font_point: 12, label_font_point: 12, comment_font_point: 12,
-  horizontal: false, vertical_text: false, vertical_text_left_to_right: false,
+  font_face: '', label_font_face: '', comment_font_face: '',
+  font_point: 12, label_font_point: 0, comment_font_point: 0,
+  horizontal: false, vertical_text: false, vertical_text_left_to_right: false, vertical_text_with_wrap: false,
   inline_preedit: false, preedit_type: 'composition', label_format: '%s.',
   mark_text: '', candidate_abbreviate_length: 0,
   layout: {
@@ -120,12 +120,12 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
     if (key === 'align_type') continue;
     const signed = ['margin_x', 'margin_y', 'shadow_offset_x', 'shadow_offset_y'].includes(key);
     let alias: string | undefined;
-    if (key === 'border_width' && values['style/layout/border'] !== undefined) alias = 'border';
-    if (key === 'round_corner' && values['style/layout/hilited_corner_radius'] !== undefined) alias = 'hilited_corner_radius';
+    if (key === 'border_width' && values['style/layout/border'] != null) alias = 'border';
+    if (key === 'round_corner' && values['style/layout/hilited_corner_radius'] != null) alias = 'hilited_corner_radius';
     if (key === 'corner_radius' && values['style/layout/corner_radius'] == null && values['style/layout/round_corner'] != null) alias = 'round_corner';
-    if (key.startsWith('hilite_padding_') && values[`style/layout/${key}`] === undefined) alias = 'hilite_padding';
+    if (key.startsWith('hilite_padding_') && values[`style/layout/${key}`] == null) alias = 'hilite_padding';
     const path = `style/layout/${key}`;
-    layout[key] = alias && values[`style/layout/${alias}`] !== undefined
+    layout[key] = alias && values[`style/layout/${alias}`] != null
       ? number(`style/layout/${alias}`, undefined, signed) : number(path, undefined, signed);
     if (alias) origins[path] = key === 'corner_radius' ? 'derived' : origins[`style/layout/${alias}`] ?? 'runtime';
   }
@@ -135,10 +135,13 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
     label_font_face: text('style/label_font_face', font) || font,
     comment_font_face: text('style/comment_font_face', font) || font,
     font_point: point,
-    label_font_point: number('style/label_font_point', point),
-    comment_font_point: number('style/comment_font_point', point),
+    // Native fallback reads the raw font_point key, before its main-text <=0
+    // correction. With neither key present the secondary fonts remain disabled.
+    label_font_point: number('style/label_font_point', values['style/font_point'] != null ? Math.abs(Number(values['style/font_point'])) : undefined),
+    comment_font_point: number('style/comment_font_point', values['style/font_point'] != null ? Math.abs(Number(values['style/font_point'])) : undefined),
     horizontal: bool('style/horizontal'), vertical_text: bool('style/vertical_text'),
     vertical_text_left_to_right: bool('style/vertical_text_left_to_right'),
+    vertical_text_with_wrap: bool('style/vertical_text_with_wrap'),
     inline_preedit: bool('style/inline_preedit'),
     preedit_type: enumValue('style/preedit_type', ['composition', 'preview', 'preview_all'], 'composition'),
     label_format: text('style/label_format'), mark_text: text('style/mark_text'),
@@ -165,7 +168,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
   const supported = new Set(Object.keys(flatten({ style: STYLE_RUNTIME })));
   for (const k of ['color_scheme', 'color_scheme_dark', 'text_orientation', 'layout/type', 'layout/border', 'layout/hilite_padding', 'layout/hilited_corner_radius']) supported.add(`style/${k}`);
   const behaviorOnly = new Set(['display_tray_icon', 'ascii_tip_follow_cursor', 'enhanced_position', 'paging_on_scroll', 'click_to_capture', 'hover_type']);
-  const inactiveUnsupported = new Set(['style/fullscreen', 'style/vertical_auto_reverse', 'style/vertical_text_with_wrap', 'style/layout/linespacing', 'style/layout/baseline']);
+  const inactiveUnsupported = new Set(['style/fullscreen', 'style/vertical_auto_reverse', 'style/layout/linespacing', 'style/layout/baseline']);
   for (const [path, value] of Object.entries(values)) {
     if (origins[path] !== 'user') continue;
     const inactive = inactiveUnsupported.has(path) && ['false', '0', '', false, 0, null].includes(value as never);
@@ -177,7 +180,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
   if (type.includes('fullscreen')) diagnostics.push({ level: 'warning', code: 'unsupported', path: 'style/layout/type', message: '尚未模拟全屏候选窗口。' });
   if (layout.max_width || layout.max_height) diagnostics.push({ level: 'warning', code: 'approximation', path: 'style/layout', message: '候选行按原生矩形规则排列；单条文字的折行由浏览器测量，可能与 DirectWrite 不同。' });
   for (const key of ['font_face', 'label_font_face', 'comment_font_face'] as const) {
-    if (style[key].split(',').some((f) => f.trim().split(':').length > 2)) diagnostics.push({ level: 'warning', code: 'font-range', path: `style/${key}`, message: '字体码位范围未模拟；浏览器使用字体回退链。' });
+    if (style[key].split(',').some((f) => f.split(':').slice(1).some((part) => /^[\da-f]+$/i.test(part.trim())))) diagnostics.push({ level: 'warning', code: 'font-range', path: `style/${key}`, message: '字体码位范围未模拟；浏览器使用字体回退链。' });
   }
   if (!isMap(merged.style)) diagnostics.push({ level: 'error', code: 'style', path: 'style', message: 'style 必须是字典。' });
   const schemes: Record<string, Scheme> = Object.create(null);

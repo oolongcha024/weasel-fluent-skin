@@ -16,13 +16,14 @@ export function validateScenes(input: unknown): { scenes: Scene[]; diagnostics: 
   for (const item of input) {
     if (!item || !/^[a-zA-Z0-9_-]+$/.test(item.id) || ids.has(item.id) || typeof item.name !== 'string' || typeof item.preedit !== 'string'
       || (item.highlightedPreedit !== undefined && typeof item.highlightedPreedit !== 'string')
+      || (item.commitPreview !== undefined && typeof item.commitPreview !== 'string')
       || (item.currentPage !== undefined && (!Number.isInteger(item.currentPage) || item.currentPage < 0))
       || (item.isLastPage !== undefined && typeof item.isLastPage !== 'boolean')
-      || !Array.isArray(item.candidates) || !item.candidates.length || !Number.isInteger(item.highlighted)
+      || !Array.isArray(item.candidates) || !item.candidates.length || item.candidates.length > 100 || !Number.isInteger(item.highlighted)
       || item.highlighted < 0 || item.highlighted >= item.candidates.length
       || item.candidates.some((c: unknown) => !c || typeof (c as { text?: unknown }).text !== 'string'
         || ['comment', 'label'].some((key) => (c as Record<string, unknown>)[key] !== undefined && typeof (c as Record<string, unknown>)[key] !== 'string'))) {
-      diagnostics.push({ level: 'error', code: 'scenes', message: '场景需包含唯一 id、name、preedit、有效 highlighted 索引和文本候选项；参见 examples/scenes.json。' });
+      diagnostics.push({ level: 'error', code: 'scenes', message: '场景需包含唯一 id、name、preedit、有效 highlighted 索引和 1–100 个文本候选项；预编辑、提交预览和高亮片段需为文本。参见 examples/scenes.json。' });
     }
     if (item) ids.add(item.id);
   }

@@ -1,17 +1,20 @@
 import type { Layout, Scene, Style } from './types';
+import { abbreviate, candidateLabel, formatLabel, preeditContent } from './text';
+import { prepareRounding, roundShape, type RoundShape } from './rounding';
+export { formatLabel } from './text';
 
 export interface Size { width: number; height: number }
 export interface Rect extends Size { x: number; y: number }
-export type TextRole = 'text' | 'label' | 'comment';
+export type TextRole = 'text' | 'label' | 'comment' | 'preedit';
 export interface TextRun { text: string; role: TextRole; rect: Rect; highlighted?: boolean }
 export interface CandidateGeometry {
   index: number; row: number; bounds: Rect; background: Rect;
-  label: TextRun | null; text: TextRun; comment: TextRun | null;
+  label: TextRun | null; text: TextRun; comment: TextRun | null; rounding: RoundShape;
 }
 export interface PreviewGeometry extends Size {
   basis: 'weasel-0.17.4'; density: number; layout: Layout;
   candidates: CandidateGeometry[];
-  preedit: { bounds: Rect; runs: TextRun[]; background: Rect | null } | null;
+  preedit: { bounds: Rect; runs: TextRun[]; background: Rect | null; rounding: RoundShape } | null;
   pages: { previous: Rect; next: Rect } | null;
   mark: { rect: Rect; text: string } | null;
 }
@@ -32,14 +35,6 @@ export function scaleLayout(layout: Layout, density: number): Layout {
     typeof value === 'number' ? Math.trunc(value * density) : value])) as unknown as Layout;
 }
 
-export function formatLabel(format: string, label: string): string {
-  return format.replace(/%%|%(-?)(\d*)s/g, (token, left: string, width: string) => {
-    if (token === '%%') return '%';
-    const size = Math.min(Number(width), 127); // Native label buffer is 128 wchar_t.
-    return left ? label.padEnd(size, ' ') : label.padStart(size, ' ');
-  });
-}
-
 export function calculateLayout(style: Style, colors: Record<string, string>, scene: Scene, measure: MeasureText, density = 1): PreviewGeometry {
   const l = scaleLayout(style.layout, density);
   const mx = Math.max(Math.abs(l.margin_x), l.hilite_padding_x), my = Math.max(Math.abs(l.margin_y), l.hilite_padding_y);
@@ -49,10 +44,7 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
   const thickness = markerOn && !style.mark_text ? Math.max(6, Math.trunc((vertical ? markerSize.width : markerSize.height) / 7)) : 0;
   const markerAdvance = !markerOn ? 0 : style.mark_text ? (vertical ? markerSize.height : markerSize.width) + l.hilite_spacing : thickness;
   const run = (text: string, role: TextRole, x = 0, y = 0): TextRun => ({ text, role, rect: { x, y, ...measure(text, role) } });
-  let preeditText = scene.preedit;
-  if (style.preedit_type === 'preview') preeditText = scene.candidates[scene.highlighted].text;
-  if (style.preedit_type === 'preview_all') preeditText = scene.candidates.map((c) => c.text).join(' ');
-  const highlight = style.preedit_type === 'composition' ? scene.highlightedPreedit : preeditText;
+  const { text: preeditText, highlight } = preeditContent(style, scene);
   const highlightIndex = highlight ? preeditText.indexOf(highlight) : -1;
   const preeditRuns: TextRun[] = [];
   let preeditWidth = 0, preeditHeight = 0;
@@ -62,24 +54,27 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
       : [{ text: preeditText, gap: false }];
     for (const part of parts) {
       if (!part.text) continue;
-      const item = run(part.text, 'text', vertical ? 0 : preeditWidth, vertical ? preeditHeight : 0);
+      const item = run(part.text, 'preedit', vertical ? 0 : preeditWidth, vertical ? preeditHeight : 0);
       item.highlighted = 'highlighted' in part && !!part.highlighted;
+      // 0.17.4 GetPreeditSize passes range.end as substr's LENGTH, whereas the
+      // painter uses end-start. Preserve its allocation even with a prefix.
+      if (item.highlighted && highlightIndex > 0) Object.assign(item.rect,
+        measure(preeditText.slice(highlightIndex, 2 * highlightIndex + part.text.length), 'preedit'));
       preeditRuns.push(item);
       if (vertical) { preeditWidth = Math.max(preeditWidth, item.rect.width); preeditHeight += item.rect.height + (part.gap ? l.hilite_spacing : 0); }
       else { preeditWidth += item.rect.width + (part.gap ? l.hilite_spacing : 0); preeditHeight = Math.max(preeditHeight, item.rect.height); }
     }
   }
-  const preedit = preeditRuns.length ? { bounds: rect(0, 0, preeditWidth, preeditHeight), runs: preeditRuns, background: null as Rect | null } : null;
+  const preedit = preeditRuns.length ? { bounds: rect(0, 0, preeditWidth, preeditHeight), runs: preeditRuns, background: null as Rect | null, rounding: roundShape(l.round_corner) } : null;
   const pageOn = !!preedit && visible(colors.prevpage_color) && visible(colors.nextpage_color);
-  const prev = pageOn ? measure('<', 'text') : { width: 0, height: 0 };
-  const next = pageOn ? measure('>', 'text') : { width: 0, height: 0 };
+  const prev = pageOn ? measure('<', 'preedit') : { width: 0, height: 0 };
+  const next = pageOn ? measure('>', 'preedit') : { width: 0, height: 0 };
   const pageWidth = pageOn ? vertical ? Math.max(prev.width, next.width) : prev.width + next.width + l.hilite_spacing + 2 * l.hilite_padding_x : 0;
   const pageHeight = pageOn ? vertical ? prev.height + next.height + l.hilite_spacing + 2 * l.hilite_padding_y : Math.max(prev.height, next.height) : 0;
   const candidates: CandidateGeometry[] = scene.candidates.map((item, index) => {
-    let text = item.text;
-    if (style.candidate_abbreviate_length && [...text].length > style.candidate_abbreviate_length) text = [...text].slice(0, style.candidate_abbreviate_length).join('') + '…';
-    return { index, row: 0, bounds: rect(0, 0, 0, 0), background: rect(0, 0, 0, 0),
-      label: style.label_font_point ? run(formatLabel(style.label_format, item.label ?? String(index + 1)), 'label') : null,
+    const text = abbreviate(item.text, style.candidate_abbreviate_length);
+    return { index, row: 0, bounds: rect(0, 0, 0, 0), background: rect(0, 0, 0, 0), rounding: roundShape(l.round_corner),
+      label: style.label_font_point ? run(formatLabel(style.label_format, candidateLabel(scene, index)), 'label') : null,
       text: run(text, 'text'),
       comment: style.comment_font_point && item.comment && visible(colors[index === scene.highlighted ? 'hilited_comment_text_color' : 'comment_text_color']) ? run(item.comment, 'comment') : null };
   });
@@ -96,43 +91,67 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
   const ox = shadowBuffer + (l.shadow_radius ? Math.abs(l.shadow_offset_x) : 0) + 2 * l.border_width;
   const oy = shadowBuffer + (l.shadow_radius ? Math.abs(l.shadow_offset_y) : 0) + 2 * l.border_width;
   let width = 0, height = 0;
-  if (!vertical && style.horizontal) {
-    let x = ox + mx, y = oy + my, row = 0;
-    width = x;
+  if ((!vertical && style.horizontal) || (vertical && style.vertical_text_with_wrap)) {
+    // Horizontal candidates and wrapped vertical text use the same packing
+    // operation with exchanged axes. The native minimums/buffers differ by axis.
+    const mu = vertical ? my : mx, mv = vertical ? mx : my;
+    const ou = vertical ? oy : ox, ov = vertical ? ox : oy;
+    const mainSize = (r: Rect) => vertical ? r.height : r.width;
+    const crossSize = (r: Rect) => vertical ? r.width : r.height;
+    const packRect = (u: number, v: number, a: number, b: number) => vertical ? rect(v, u, b, a) : rect(u, v, a, b);
+    const limit = vertical ? l.max_height : l.max_width;
+    let u = ou + mu, v = ov + mv, row = 0;
+    let main = vertical ? ou : u;
     if (preedit) {
-      preedit.bounds.x = x; preedit.bounds.y = y;
-      y += Math.max(preeditHeight, pageHeight) + l.spacing;
-      width = Math.max(width, 2 * mx + preeditWidth + pageWidth);
+      preedit.bounds.x = ox + mx; preedit.bounds.y = oy + my;
+      v += (vertical ? preeditWidth : Math.max(preeditHeight, pageHeight)) + l.spacing;
+      main = Math.max(main, vertical ? ou + mu + preeditHeight + pageHeight : 2 * mu + preeditWidth + pageWidth);
     }
-    const rows: { y: number; height: number; items: CandidateGeometry[] }[] = [{ y, height: 0, items: [] }];
+    const rows: { v: number; size: number; items: CandidateGeometry[] }[] = [{ v, size: 0, items: [] }];
     for (const c of candidates) {
-      const labelWidth = c.label?.rect.width ?? 0;
+      const labelSize = c.label ? mainSize(c.label.rect) : 0;
       const advance = c.index === scene.highlighted ? markerAdvance : 0;
-      const itemWidth = advance + labelWidth + l.hilite_spacing + c.text.rect.width + (c.comment ? l.hilite_spacing + c.comment.rect.width : 0);
-      if (rows[row].items.length) x += l.candidate_spacing;
-      if (l.max_width && rows[row].items.length && x + itemWidth - ox + mx > l.max_width) {
-        y += rows[row].height + l.candidate_spacing;
-        x = ox + mx; row++;
-        rows.push({ y, height: 0, items: [] });
+      const itemSize = advance + labelSize + l.hilite_spacing + mainSize(c.text.rect) + (c.comment ? l.hilite_spacing + mainSize(c.comment.rect) : 0);
+      if (rows[row].items.length) u += l.candidate_spacing;
+      if (limit && rows[row].items.length && u + itemSize - ou + mu > limit) {
+        v += rows[row].size + l.candidate_spacing;
+        u = ou + mu; row++;
+        rows.push({ v, size: 0, items: [] });
       }
-      c.row = row; c.bounds.x = x; c.bounds.y = y; c.bounds.width = itemWidth;
-      let contentX = x + advance;
-      if (c.label) { c.label.rect.x = contentX; c.label.rect.y = y; contentX += labelWidth; }
-      contentX += l.hilite_spacing;
-      c.text.rect.x = contentX; c.text.rect.y = y; contentX += c.text.rect.width;
-      if (c.comment) { c.comment.rect.x = contentX + l.hilite_spacing; c.comment.rect.y = y; }
+      c.row = row; c.bounds = packRect(u, v, itemSize, 0);
+      let content = u + advance;
+      const put = (r: TextRun) => { r.rect = packRect(content, v, mainSize(r.rect), crossSize(r.rect)); };
+      if (c.label) { put(c.label); content += labelSize; }
+      content += l.hilite_spacing;
+      put(c.text); content += mainSize(c.text.rect);
+      if (c.comment) { content += l.hilite_spacing; put(c.comment); }
       rows[row].items.push(c);
-      rows[row].height = Math.max(rows[row].height, ...allRuns(c).map((r) => r.rect.height));
-      x += itemWidth; width = Math.max(width, x);
+      rows[row].size = Math.max(rows[row].size, ...allRuns(c).map((r) => crossSize(r.rect)));
+      u += itemSize; main = Math.max(main, u);
     }
-    width = Math.max(width + mx, l.min_width);
-    height = Math.max(y + rows[row].height - oy + my, l.min_height);
+    const naturalMain = main;
+    main = Math.max(main + mu, vertical ? l.min_height : l.min_width);
+    const cross = Math.max(v + rows[row].size - ov + mv, vertical ? l.min_width : l.min_height);
     for (const group of rows) for (const [i, c] of group.items.entries()) {
-      c.bounds.height = group.height;
-      align(allRuns(c), group.height, 'y');
-      if (i === group.items.length - 1) c.bounds.width = width - mx - c.bounds.x;
+      if (vertical) c.bounds.width = group.size; else c.bounds.height = group.size;
+      const mode = !vertical || l.align_type === 'center' ? l.align_type
+        : ((l.align_type === 'bottom') === style.vertical_text_left_to_right) ? 'bottom' : 'top';
+      align(allRuns(c), group.size, vertical ? 'x' : 'y', mode);
+      if (i === group.items.length - 1) {
+        if (vertical) c.bounds.height = naturalMain - c.bounds.y;
+        else c.bounds.width = main - mu - c.bounds.x;
+      }
     }
-    width -= ox;
+    width = vertical ? cross : main - ou; height = vertical ? main - ou : cross;
+    if (vertical && !style.vertical_text_left_to_right) {
+      let target = ox + mx;
+      for (const group of rows.toReversed()) {
+        const dx = target - group.v;
+        for (const c of group.items) { move(c.bounds, dx, 0); for (const r of allRuns(c)) move(r.rect, dx, 0); }
+        target += group.size + l.candidate_spacing;
+      }
+      if (preedit) preedit.bounds.x = target - l.candidate_spacing + l.spacing;
+    }
     for (const c of candidates) { move(c.bounds, -ox, -oy); for (const r of allRuns(c)) move(r.rect, -ox, -oy); }
     if (preedit) move(preedit.bounds, -ox, -oy);
   } else if (!vertical) {
@@ -154,12 +173,13 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
       align(allRuns(c), h, 'y');
       c.bounds = rect(mx, y, 0, h); y += h;
     }
-    width = Math.max(width, Math.max(widestContent, commentBand + widestComment) + 2 * mx, l.min_width);
+    const naturalWidth = Math.max(width, Math.max(widestContent, commentBand + widestComment) + 2 * mx);
+    width = Math.max(naturalWidth, l.min_width);
     height = Math.max(y + my, l.min_height);
-    for (const c of candidates) { c.bounds.width = width - 2 * mx; if (c.comment) c.comment.rect.x = mx + commentBand; }
+    for (const c of candidates) { c.bounds.width = width - 2 * mx; if (c.comment) c.comment.rect.x = mx + commentBand + width - naturalWidth; }
   } else {
     let x = ox + mx, maxContentBottom = oy + my + markerAdvance, maxCommentHeight = 0;
-    if (preedit) { preedit.bounds.x = x; preedit.bounds.y = oy + my; x += Math.max(preeditWidth, pageWidth) + l.spacing; }
+    if (preedit) { preedit.bounds.x = x; preedit.bounds.y = oy + my; x += preeditWidth + l.spacing; }
     const left = ox + mx;
     for (const c of candidates) {
       let y = oy + my + markerAdvance;
@@ -199,7 +219,10 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
   }
   for (const c of candidates) c.background = inflate(c.bounds, l.hilite_padding_x, l.hilite_padding_y);
   if (preedit) {
-    for (const r of preedit.runs) move(r.rect, preedit.bounds.x, preedit.bounds.y);
+    for (const r of preedit.runs) {
+      if (vertical) r.rect.width = preeditWidth; else r.rect.height = preeditHeight;
+      move(r.rect, preedit.bounds.x, preedit.bounds.y);
+    }
     const selected = preedit.runs.find((r) => r.highlighted);
     preedit.background = selected ? inflate(selected.rect, l.hilite_padding_x, l.hilite_padding_y) : null;
   }
@@ -223,5 +246,7 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
         : rect(box.x, box.y + Math.trunc((box.height - extent) / 2), thickness, extent) };
     }
   }
-  return { basis: 'weasel-0.17.4', width, height, density, layout: l, candidates, preedit, pages, mark };
+  const geometry: PreviewGeometry = { basis: 'weasel-0.17.4', width, height, density, layout: l, candidates, preedit, pages, mark };
+  prepareRounding(geometry, style);
+  return geometry;
 }

@@ -39,7 +39,7 @@ test('highlight bar reserves native label spacing independently of font and disp
         const candidate = document.querySelector('.ime-candidate[aria-selected=true]')!;
         const mark = candidate.querySelector('.ime-mark')!.getBoundingClientRect();
         const label = candidate.querySelector('.ime-label')!.getBoundingClientRect();
-        const surface = candidate.querySelector('.ime-candidate-surface')!.getBoundingClientRect();
+        const surface = document.querySelector('.ime-candidate-surface[data-index="0"]')!.getBoundingClientRect();
         return { gap: label.left - mark.right, markWidth: mark.width, markInset: mark.left - surface.left };
       });
       assert.ok(Math.abs(dimensions.gap - 8) < .1, `DPR ${density}: bar-to-label gap ${dimensions.gap}px, expected 8px`);

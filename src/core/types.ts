@@ -21,7 +21,7 @@ export interface Layout {
 export interface Style {
   font_face: string; label_font_face: string; comment_font_face: string;
   font_point: number; label_font_point: number; comment_font_point: number;
-  horizontal: boolean; vertical_text: boolean; vertical_text_left_to_right: boolean;
+  horizontal: boolean; vertical_text: boolean; vertical_text_left_to_right: boolean; vertical_text_with_wrap: boolean;
   inline_preedit: boolean; preedit_type: 'composition' | 'preview' | 'preview_all';
   label_format: string; mark_text: string; candidate_abbreviate_length: number;
   layout: Layout;
@@ -46,7 +46,7 @@ export interface ConfigResult {
 }
 export interface Candidate { text: string; comment?: string; label?: string }
 export interface Scene {
-  id: string; name: string; preedit: string; highlightedPreedit?: string;
+  id: string; name: string; preedit: string; highlightedPreedit?: string; commitPreview?: string;
   highlighted: number; candidates: Candidate[];
   currentPage?: number; isLastPage?: boolean;
 }
