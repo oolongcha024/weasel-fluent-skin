@@ -19,10 +19,10 @@ patch:
       min_width: 0
       border_width: 1
       margin_x: 10
-      margin_y: 8
-      candidate_spacing: 18
-      hilite_spacing: 8
-      hilite_padding_x: 8
+      margin_y: 7
+      candidate_spacing: 16
+      hilite_spacing: 6
+      hilite_padding_x: 6
       hilite_padding_y: 4
       corner_radius: 8
       round_corner: 4
