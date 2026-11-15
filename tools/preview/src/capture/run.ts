@@ -1,13 +1,13 @@
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { startServer } from '../server/server';
+import { startServer, type ServerOptions } from '../server/server';
 import { uniqueDiagnostics } from '../core/diagnostics';
 import { sameIdentity } from '../input/identity';
 import { createCaptureBundle } from './bundle';
 import type { BrowserReport } from '../preview/report';
 import type {} from '../preview/automation';
 
-export interface CaptureOptions { config: string; scenes?: string; port?: number; out: string; scheme?: string; dpr: number }
+export interface CaptureOptions extends Omit<ServerOptions, 'live'> { out: string; scheme?: string; dpr: number }
 
 /** One frozen run, including resource ownership, consistency checks and failure artifacts. */
 export async function capturePreview(args: CaptureOptions) {

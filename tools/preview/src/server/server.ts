@@ -1,19 +1,21 @@
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
-import { HOST, TOOL_ROOT } from '../environment';
+import { TOOL_ROOT } from '../environment';
 import { loadSnapshot } from '../input/snapshot';
+import { connectionUrl, resolveNetworkOptions, type NetworkOptions } from './network';
 
-export interface ServerOptions { config: string; scenes?: string; port?: number; live?: boolean }
+export interface ServerOptions extends Partial<NetworkOptions> { config: string; scenes?: string; live?: boolean }
 
 export async function startServer(options: ServerOptions) {
+  const network = resolveNetworkOptions(options);
   let snapshot = await loadSnapshot(options);
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const paths = [options.config, options.scenes].filter((p): p is string => !!p).map((p) => resolve(p));
   const server = await createServer({
     root: TOOL_ROOT, configFile: false, clearScreen: false,
-    server: { host: HOST, port: options.port ?? 5173, strictPort: options.port !== 0,
-      hmr: options.live === false ? false : { host: HOST },
+    server: { ...network, strictPort: true,
+      hmr: options.live === false ? false : undefined,
       watch: { ignored: ['**/artifacts/**'] } },
     plugins: [{
       name: 'weasel-local-input',
@@ -51,8 +53,13 @@ export async function startServer(options: ServerOptions) {
       closeBundle() { generation++; clearTimeout(timer); },
     }],
   });
-  await server.listen();
-  const address = server.httpServer!.address();
-  if (!address || typeof address === 'string') throw new Error('无法取得预览服务端口。');
-  return { server, get snapshot() { return snapshot; }, url: `http://${HOST}:${address.port}` };
+  try {
+    await server.listen();
+    const address = server.httpServer!.address();
+    if (!address || typeof address === 'string') throw new Error('无法取得预览服务地址。');
+    return { server, get snapshot() { return snapshot; }, url: connectionUrl(address) };
+  } catch (error) {
+    await server.close();
+    throw error;
+  }
 }

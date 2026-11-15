@@ -10,7 +10,7 @@ test('live workbench retains stale frames, rejects exports and recovers with sel
   const dir = await mkdtemp(join(tmpdir(), 'weasel-session-')), config = join(dir, 'weasel.custom.yaml');
   const source = 'patch:\n  style/font_face: sans-serif\n';
   await writeFile(config, source);
-  const instance = await startServer({ config, port: 0, live: true });
+  const instance = await startServer({ config, live: true });
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();

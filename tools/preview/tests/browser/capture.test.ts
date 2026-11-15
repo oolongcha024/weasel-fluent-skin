@@ -34,7 +34,7 @@ test('capture CLI creates a frozen, reproducible bundle and fails without stale 
 `;
     await writeFile(input, source);
     await writeFile(scenes, JSON.stringify([{ id: 'test', name: 'Test', preedit: 'ni', highlighted: 0, candidates: [{ text: '<img src=x>', comment: '注释' }] }]));
-    const success = await run(['--config', input, '--scenes', scenes, '--out', out, '--dpr', '1.5']);
+    const success = await run(['--config', input, '--scenes', scenes, '--out', out, '--dpr', '1.5', '--host', '0.0.0.0']);
     assert.equal(success.code, 0, success.output);
     const [successDir] = await readdir(out);
     const manifest = JSON.parse(await readFile(join(out, successDir, 'manifest.json'), 'utf8'));
