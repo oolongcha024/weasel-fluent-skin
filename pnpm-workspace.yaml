@@ -1,4 +1,4 @@
 packages:
-  - '.'
+  - tools/preview
 allowBuilds:
   esbuild: true

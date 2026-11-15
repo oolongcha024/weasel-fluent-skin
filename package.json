@@ -8,23 +8,13 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "tsx watch scripts/dev.ts",
-    "capture": "tsx scripts/capture.ts",
-    "check": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
-    "test:browser": "tsx --test tests/browser/*.test.ts",
-    "build": "pnpm check && vite build",
-    "browser:install": "playwright install chromium",
-    "verify:native": "tsx scripts/verify-native.ts"
-  },
-  "dependencies": {
-    "yaml": "^2.9.1"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "playwright": "^1.65.1",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
-    "vite": "^8.3.8"
+    "dev": "pnpm --filter @weasel-fluent/preview dev",
+    "capture": "pnpm --filter @weasel-fluent/preview capture",
+    "check": "pnpm --filter @weasel-fluent/preview check",
+    "test": "pnpm --filter @weasel-fluent/preview test",
+    "test:browser": "pnpm --filter @weasel-fluent/preview test:browser",
+    "build": "pnpm --filter @weasel-fluent/preview build",
+    "browser:install": "pnpm --filter @weasel-fluent/preview browser:install",
+    "verify:native": "pnpm --filter @weasel-fluent/preview verify:native"
   }
 }

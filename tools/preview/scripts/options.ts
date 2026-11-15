@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
-import { resolve } from 'node:path';
-import { ROOT } from '../src/environment';
+import { join } from 'node:path';
+import { inputPath, REPOSITORY_ROOT } from '../src/environment';
 
 export function options(kind: 'dev' | 'capture') {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
@@ -8,7 +8,7 @@ export function options(kind: 'dev' | 'capture') {
     out: { type: 'string' }, scheme: { type: 'string' }, dpr: { type: 'string' }, help: { type: 'boolean', short: 'h' },
   } });
   if (values.help) {
-    console.log(`pnpm ${kind} --config <weasel.custom.yaml> [--scenes <scenes.json>] [--port <port>]${kind === 'capture' ? ' [--out <directory>] [--scheme <id>] [--dpr <0.5–4>]' : ''}\n默认示例：examples/fluent.custom.yaml\n服务监听 10.126.179.2；capture 默认使用空闲端口。`);
+    console.log(`pnpm ${kind} --config <weasel.custom.yaml> [--scenes <scenes.json>] [--port <port>]${kind === 'capture' ? ' [--out <directory>] [--scheme <id>] [--dpr <0.5–4>]' : ''}\n默认皮肤：skins/fluent-2/weasel.custom.yaml\n默认场景：previews/scenes.json\n相对路径按调用 pnpm 时的目录解析。\n服务监听 10.126.179.2；capture 默认使用空闲端口。`);
     process.exit(0);
   }
   // pnpm forwards a literal -- in some invocation forms.
@@ -19,8 +19,8 @@ export function options(kind: 'dev' | 'capture') {
   const dpr = Number(values.dpr ?? 1);
   if (!Number.isFinite(dpr) || dpr < .5 || dpr > 4) throw new Error('截图 DPR 应在 0.5–4 之间。');
   return {
-    config: resolve(values.config ?? positional[0] ?? resolve(ROOT, 'examples/fluent.custom.yaml')),
-    scenes: values.scenes ? resolve(values.scenes) : undefined, port,
-    out: resolve(values.out ?? resolve(ROOT, 'artifacts')), scheme: values.scheme, dpr,
+    config: inputPath(values.config ?? positional[0] ?? join(REPOSITORY_ROOT, 'skins/fluent-2/weasel.custom.yaml')),
+    scenes: inputPath(values.scenes ?? join(REPOSITORY_ROOT, 'previews/scenes.json')), port,
+    out: inputPath(values.out ?? join(REPOSITORY_ROOT, 'artifacts')), scheme: values.scheme, dpr,
   };
 }

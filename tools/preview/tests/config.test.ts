@@ -148,11 +148,11 @@ test('patch paths cannot traverse prototypes', () => {
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
 });
 
-test('empty patch supports builtin themes and both sample schemes are usable', async () => {
+test('empty patch supports builtin themes and both product schemes are usable', async () => {
   const empty = resolveConfig('patch: {}', defaults);
   assert.equal(empty.ok, true);
   assert.ok(empty.schemes[empty.selected.light]);
-  const sample = resolveConfig(await readFile(new URL('../examples/fluent.custom.yaml', import.meta.url), 'utf8'), defaults);
+  const sample = resolveConfig(await readFile(new URL('../../../skins/fluent-2/weasel.custom.yaml', import.meta.url), 'utf8'), defaults);
   assert.equal(sample.ok, true);
   assert.equal(sample.selected.dark, 'fluent_dark');
   assert.equal(sample.schemes.fluent_light.diagnostics.length, 0);

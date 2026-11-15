@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  tools/preview:
     dependencies:
       yaml:
         specifier: ^2.9.1

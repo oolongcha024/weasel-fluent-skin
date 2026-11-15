@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { ROOT } from '../environment';
+import { TOOL_ROOT } from '../environment';
 import { resolveConfig } from '../core/config';
 import type { ConfigResult } from '../core/config-model';
 import { readYaml } from '../core/yaml';
@@ -22,8 +22,8 @@ export const sha256 = (text: string) => createHash('sha256').update(text).digest
 
 export async function loadSnapshot(options: InputOptions, dependencies: InputDependencies = diskInput): Promise<InputSnapshot> {
   const [defaultSource, upstreamSource] = await Promise.all([
-    dependencies.readText(resolve(ROOT, 'data/weasel-defaults.yaml')),
-    dependencies.readText(resolve(ROOT, 'data/upstream.json')),
+    dependencies.readText(resolve(TOOL_ROOT, 'data/weasel-defaults.yaml')),
+    dependencies.readText(resolve(TOOL_ROOT, 'data/upstream.json')),
   ]);
   const defaults = readYaml(defaultSource);
   if (defaults.diagnostics.length) throw new Error('内置默认配置无法读取。');

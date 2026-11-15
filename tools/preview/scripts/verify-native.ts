@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { ROOT } from '../src/environment';
+import { TOOL_ROOT, REPOSITORY_ROOT, inputPath } from '../src/environment';
 import { sha256 } from '../src/input/snapshot';
 import { readYaml } from '../src/core/yaml';
 import { resolveConfig } from '../src/core/config';
@@ -14,24 +14,24 @@ import { nativeCases, fixedMeasurement, visibleRectangles, type NativeRectangles
 import reference from './native/reference.json';
 
 const { values } = parseArgs({ options: { upstream: { type: 'string' }, out: { type: 'string' } } });
-const out = resolve(values.out ?? join(ROOT, 'artifacts/native-reference', `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`));
+const out = inputPath(values.out ?? join(REPOSITORY_ROOT, 'artifacts/native-reference', `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`));
 const work = await mkdtemp(join(tmpdir(), 'weasel-native-'));
 try {
   const sources = await Promise.all(Object.entries(reference.sources).map(async ([name, expected]) => {
     const response = values.upstream ? null : await fetch(`https://raw.githubusercontent.com/rime/weasel/${reference.commit}/WeaselUI/${name}`, { signal: AbortSignal.timeout(30000) });
     if (response && !response.ok) throw new Error(`下载 ${name} 失败：HTTP ${response.status}`);
-    const text = values.upstream ? await readFile(resolve(values.upstream, name), 'utf8') : await response!.text();
+    const text = values.upstream ? await readFile(resolve(inputPath(values.upstream), name), 'utf8') : await response!.text();
     if (sha256(text) !== expected) throw new Error(`${name} 摘要不匹配，拒绝执行未固定的上游代码。`);
     // Only platform includes/namespace qualifiers are substituted; method bodies
     // remain the original upstream implementation, never a TS-derived oracle.
     return text.split(/\r?\n/).filter((line) => !line.startsWith('#include') && !line.startsWith('using namespace')).join('\n').replaceAll('weasel::', '');
   }));
-  const bridge = await readFile(join(ROOT, 'scripts/native/bridge.cpp'), 'utf8');
+  const bridge = await readFile(join(TOOL_ROOT, 'scripts/native/bridge.cpp'), 'utf8');
   const sourcePath = join(work, 'reference.cpp'), executable = join(work, 'reference');
   await writeFile(sourcePath, bridge.replace('// INSERT_NATIVE_LAYOUTS', sources.join('\n')));
   const compile = spawnSync(process.env.CXX ?? 'g++', ['-std=c++17', '-O2', sourcePath, '-o', executable], { encoding: 'utf8', timeout: 60000 });
   if (compile.error || compile.status !== 0) throw new Error(`编译原生对照失败（需要 C++17 编译器）：${compile.error?.message ?? compile.stderr}`);
-  const defaults = readYaml(await readFile(join(ROOT, 'data/weasel-defaults.yaml'), 'utf8')).data;
+  const defaults = readYaml(await readFile(join(TOOL_ROOT, 'data/weasel-defaults.yaml'), 'utf8')).data;
   const config = resolveConfig('patch: {}', defaults);
   const cases = nativeCases(config.style, config.schemes.aqua.colors, reference.cases, reference.seed);
   const run = spawnSync(executable, { input: cases.map((c) => c.input).join('\n'), encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 });

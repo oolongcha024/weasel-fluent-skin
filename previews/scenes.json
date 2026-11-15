@@ -1,0 +1,79 @@
+[
+  {
+    "id": "everyday",
+    "name": "日常输入",
+    "preedit": "chun ri",
+    "highlightedPreedit": "chun",
+    "highlighted": 0,
+    "candidates": [
+      {
+        "text": "春日",
+        "comment": "chūn rì"
+      },
+      {
+        "text": "春雨",
+        "comment": "chūn yǔ"
+      },
+      {
+        "text": "春意"
+      },
+      {
+        "text": "春风"
+      },
+      {
+        "text": "春天"
+      }
+    ]
+  },
+  {
+    "id": "long",
+    "name": "长词与混排",
+    "preedit": "zi ding yi",
+    "highlightedPreedit": "zi",
+    "highlighted": 1,
+    "candidates": [
+      {
+        "text": "自定义",
+        "comment": "custom"
+      },
+      {
+        "text": "自定义输入法皮肤",
+        "comment": "一条较长的候选注释 · custom theme"
+      },
+      {
+        "text": "Fluent Design 设计语言"
+      },
+      {
+        "text": "保存 YAML，实时预览"
+      }
+    ]
+  },
+  {
+    "id": "symbols",
+    "name": "特殊字符",
+    "preedit": "fu hao",
+    "highlightedPreedit": "fu",
+    "highlighted": 0,
+    "candidates": [
+      {
+        "text": "你好，世界！",
+        "comment": "标点"
+      },
+      {
+        "text": "🌿 春天",
+        "comment": "emoji"
+      },
+      {
+        "text": "𠮷野家",
+        "comment": "扩展汉字"
+      },
+      {
+        "text": "→ ⇧ ⌘ · ①",
+        "comment": "符号"
+      },
+      {
+        "text": "Rime / 中州韵"
+      }
+    ]
+  }
+]

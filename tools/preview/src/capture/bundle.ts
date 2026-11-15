@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { ROOT } from '../environment';
+import { TOOL_ROOT } from '../environment';
 import type { InputSnapshot } from '../input/snapshot';
 import type { BrowserReport } from '../preview/report';
 import type { SnapshotIdentity } from '../input/identity';
@@ -38,7 +38,7 @@ export async function createCaptureBundle(out: string, dpr: number) {
       ]);
     },
     async shot(stem: string, report: BrowserReport, isDark: boolean) {
-      rendererCss ??= await readFile(join(ROOT, 'src/render/candidate.css'), 'utf8');
+      rendererCss ??= await readFile(join(TOOL_ROOT, 'src/render/candidate.css'), 'utf8');
       const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Weasel preview</title><style>${rendererCss}\nbody{margin:0;min-height:100vh;display:grid;place-items:center;background:${isDark ? '#20252e' : '#f0f2f6'};--editor-ink:${isDark ? '#a9b4c4' : '#555e6d'}}</style><body>${report.html}</body></html>`;
       await Promise.all([writeFile(join(directory, `${stem}.json`), JSON.stringify(report, null, 2)), writeFile(join(directory, `${stem}.html`), html)]);
       manifest.screenshots.push({ scheme: report.scheme, scene: report.scene, image: `${stem}.png`, report: `${stem}.json`, html: `${stem}.html` });

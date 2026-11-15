@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
-import { HOST, ROOT } from '../environment';
+import { HOST, TOOL_ROOT } from '../environment';
 import { loadSnapshot } from '../input/snapshot';
 
 export interface ServerOptions { config: string; scenes?: string; port?: number; live?: boolean }
@@ -11,7 +11,7 @@ export async function startServer(options: ServerOptions) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const paths = [options.config, options.scenes].filter((p): p is string => !!p).map((p) => resolve(p));
   const server = await createServer({
-    root: ROOT, configFile: false, clearScreen: false,
+    root: TOOL_ROOT, configFile: false, clearScreen: false,
     server: { host: HOST, port: options.port ?? 5173, strictPort: options.port !== 0,
       hmr: options.live === false ? false : { host: HOST },
       watch: { ignored: ['**/artifacts/**'] } },

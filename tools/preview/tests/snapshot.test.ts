@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { ROOT } from '../src/environment';
+import { TOOL_ROOT } from '../src/environment';
 import { memoryInput } from './support/input';
 import { sameIdentity } from '../src/input/identity';
 
@@ -16,7 +16,7 @@ test('snapshot identity covers YAML, defaults and scenes independently of read t
   const custom = await input.read(true);
   assert.equal(custom.sha256, original.sha256);
   assert.ok(!sameIdentity(custom.identity, original.identity));
-  input.files.set(join(ROOT, 'data/weasel-defaults.yaml'), input.files.get(join(ROOT, 'data/weasel-defaults.yaml'))! + '\n# different snapshot\n');
+  input.files.set(join(TOOL_ROOT, 'data/weasel-defaults.yaml'), input.files.get(join(TOOL_ROOT, 'data/weasel-defaults.yaml'))! + '\n# different snapshot\n');
   assert.ok(!sameIdentity((await input.read()).identity, original.identity));
 });
 

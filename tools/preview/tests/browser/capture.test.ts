@@ -4,12 +4,12 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { ROOT } from '../../src/environment';
+import { TOOL_ROOT } from '../../src/environment';
 import { sha256 } from '../../src/input/snapshot';
 
 function run(args: string[]) {
   return new Promise<{ code: number | null; output: string }>((resolve, reject) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/capture.ts', ...args], { cwd: ROOT });
+    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/capture.ts', ...args], { cwd: TOOL_ROOT });
     let output = '';
     child.stdout.on('data', (data) => { output += data; });
     child.stderr.on('data', (data) => { output += data; });
