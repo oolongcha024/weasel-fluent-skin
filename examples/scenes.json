@@ -1,0 +1,14 @@
+[
+  {
+    "id": "custom",
+    "name": "我的候选词",
+    "preedit": "ni hao",
+    "highlightedPreedit": "ni",
+    "highlighted": 0,
+    "candidates": [
+      { "text": "你好", "comment": "nǐ hǎo" },
+      { "text": "你好，世界！" },
+      { "text": "Hello, Rime", "comment": "混排" }
+    ]
+  }
+]

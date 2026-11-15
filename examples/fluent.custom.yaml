@@ -1,0 +1,65 @@
+# 修改此文件并保存，浏览器会自动更新。颜色显式使用 ARGB。
+patch:
+  "style/+":
+    color_scheme: fluent_light
+    color_scheme_dark: fluent_dark
+    font_face: "Microsoft YaHei UI, Noto Sans CJK SC, sans-serif"
+    label_font_face: "Segoe UI, Noto Sans, sans-serif"
+    comment_font_face: "Segoe UI, Noto Sans CJK SC, sans-serif"
+    font_point: 15
+    label_font_point: 11
+    comment_font_point: 10
+    horizontal: true
+    inline_preedit: true
+    label_format: "%s"
+    layout:
+      min_width: 0
+      border_width: 1
+      margin_x: 16
+      margin_y: 12
+      candidate_spacing: 28
+      hilite_spacing: 7
+      hilite_padding_x: 9
+      hilite_padding_y: 7
+      corner_radius: 10
+      round_corner: 6
+      shadow_radius: 14
+      shadow_offset_x: 0
+      shadow_offset_y: 5
+  "preset_color_schemes/+":
+    fluent_light:
+      name: "Fluent 浅色"
+      author: "Weasel Studio"
+      color_format: argb
+      back_color: 0xFFF9F9F9
+      border_color: 0xFFE0E0E0
+      shadow_color: 0x18000000
+      text_color: 0xFF242424
+      candidate_text_color: 0xFF242424
+      label_color: 0xFF8A8A8A
+      comment_text_color: 0xFF858585
+      hilited_text_color: 0xFF242424
+      hilited_back_color: 0xFFEDEDED
+      hilited_candidate_back_color: 0xFFE8F0FA
+      hilited_candidate_text_color: 0xFF153C60
+      hilited_label_color: 0xFF356D9C
+      hilited_comment_text_color: 0xFF496D8B
+      hilited_mark_color: 0xFF0078D4
+    fluent_dark:
+      name: "Fluent 深色"
+      author: "Weasel Studio"
+      color_format: argb
+      back_color: 0xFF292929
+      border_color: 0xFF414141
+      shadow_color: 0x38000000
+      text_color: 0xFFF2F2F2
+      candidate_text_color: 0xFFEAEAEA
+      label_color: 0xFF999999
+      comment_text_color: 0xFFA0A0A0
+      hilited_text_color: 0xFFF2F2F2
+      hilited_back_color: 0xFF3B3B3B
+      hilited_candidate_back_color: 0xFF344D61
+      hilited_candidate_text_color: 0xFFF2F7FC
+      hilited_label_color: 0xFFB2D8F9
+      hilited_comment_text_color: 0xFFB2CCE0
+      hilited_mark_color: 0xFF60CDFF
