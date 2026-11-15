@@ -26,7 +26,7 @@ patch:
       hilite_padding_y: 4
       corner_radius: 8
       round_corner: 4
-      shadow_radius: 16
+      shadow_radius: 12
       shadow_offset_x: 0
       shadow_offset_y: 4
   "preset_color_schemes/+":
@@ -45,8 +45,8 @@ patch:
       hilited_back_color: 0xFFEDEDED
       hilited_candidate_back_color: 0xFFEBF3FC
       hilited_candidate_text_color: 0xFF242424
-      hilited_label_color: 0xFF0F548C
-      hilited_comment_text_color: 0xFF0F548C
+      hilited_label_color: 0xFF616161
+      hilited_comment_text_color: 0xFF616161
       hilited_mark_color: 0xFF0078D4
     fluent_dark:
       name: "Fluent 深色"
@@ -57,12 +57,12 @@ patch:
       shadow_color: 0x70000000
       text_color: 0xFFF2F2F2
       candidate_text_color: 0xFFEAEAEA
-      label_color: 0xFFD6D6D6
-      comment_text_color: 0xFFD6D6D6
+      label_color: 0xFFBDBDBD
+      comment_text_color: 0xFFBDBDBD
       hilited_text_color: 0xFFF2F2F2
       hilited_back_color: 0xFF3B3B3B
       hilited_candidate_back_color: 0xFF0A2E4A
       hilited_candidate_text_color: 0xFFF2F2F2
-      hilited_label_color: 0xFFB4D6FA
-      hilited_comment_text_color: 0xFFB4D6FA
+      hilited_label_color: 0xFFBDBDBD
+      hilited_comment_text_color: 0xFFBDBDBD
       hilited_mark_color: 0xFF60CDFF
