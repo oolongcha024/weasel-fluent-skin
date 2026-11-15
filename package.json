@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.26.0",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "tsx watch scripts/dev.ts",
     "capture": "tsx scripts/capture.ts",
@@ -12,9 +14,12 @@
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "tsx --test tests/browser/*.test.ts",
     "build": "pnpm check && vite build",
-    "browser:install": "playwright install chromium"
+    "browser:install": "playwright install chromium",
+    "verify:native": "tsx scripts/verify-native.ts"
   },
-  "dependencies": { "yaml": "^2.9.1" },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "playwright": "^1.65.1",

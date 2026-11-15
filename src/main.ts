@@ -1,14 +1,11 @@
 import './style.css';
-import { renderCandidate, inspectRender, refreshCandidateLayout } from './render/candidate';
+import { createBrowserPreview } from './render/preview';
+import { PreviewSession, type PreviewView } from './preview/session';
+import type { PreviewAutomation } from './preview/automation';
+import { uniqueDiagnostics, type Diagnostic } from './core/diagnostics';
 import { flatten } from './core/patch';
-import type { BrowserReport, Diagnostic, InputSnapshot, Origin } from './core/types';
-
-interface PreviewAPI {
-  state: 'loading' | 'ready' | 'error';
-  report: BrowserReport | null;
-  select: (options: { scheme?: string; scene?: string }) => Promise<BrowserReport>;
-}
-declare global { interface Window { __WEASEL_PREVIEW__: PreviewAPI } }
+import type { Origin, ColorKey } from './core/config-model';
+import type { InputSnapshot } from './input/snapshot';
 
 const capture = new URLSearchParams(location.search).has('capture');
 document.body.classList.toggle('capture', capture);
@@ -72,20 +69,22 @@ function $<T extends HTMLElement = HTMLElement>(id: string) { return document.ge
 const node = (tag: string, className = '', text = '') => {
   const el = document.createElement(tag); el.className = className; el.textContent = text; return el;
 };
-let snapshot: InputSnapshot | null = null;
-let lastValid: InputSnapshot | null = null;
-let selectedScheme = '', selectedScene = '', mode: 'light' | 'dark' = 'light';
-let canvasDark = false, canvasManual = false, zoom = 1, renderId = 0, requestId = 0;
-let disconnected = false;
-let readFailed = false;
-let currentDiagnostics: Diagnostic[] = [];
-const api: PreviewAPI = { state: 'loading', report: null, select: async () => { throw new Error('配置尚未准备好'); } };
-window.__WEASEL_PREVIEW__ = api;
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const session = new PreviewSession(createBrowserPreview($('preview')), async () => {
+  const response = await fetch('/api/config', { cache: 'no-store' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json() as Promise<InputSnapshot>;
+});
+const automation: PreviewAutomation = {
+  get state() { return session.view.state; },
+  get report() { return session.view.report; },
+  select: (options) => session.capture(options),
+};
+window.__WEASEL_PREVIEW__ = automation;
+let controlsInput: InputSnapshot | null = null;
 
 function diagnosticsPanel(items: Diagnostic[]) {
   const panel = $('panel-diagnostics'); panel.replaceChildren();
-  const unique = [...new Map(items.map((d) => [`${d.code}:${d.path}:${d.message}`, d])).values()];
+  const unique = uniqueDiagnostics(items);
   $('diagnostic-count').textContent = String(unique.length);
   $('diagnostic-count').classList.toggle('has-warnings', unique.length > 0);
   if (!unique.length) panel.append(node('p', 'empty-diagnostics', '没有配置诊断。浏览器字体度量与 Windows 原生渲染可能存在差异。'));
@@ -101,7 +100,7 @@ function diagnosticsPanel(items: Diagnostic[]) {
 
 function effectivePanel(input: InputSnapshot) {
   const panel = $('panel-effective'); panel.replaceChildren();
-  if (snapshot && !snapshot.config.ok) panel.append(node('p', 'stale-note', '以下为上一次有效配置，当前文件有错误。'));
+  if (session.view.snapshot && !session.view.snapshot.config.ok) panel.append(node('p', 'stale-note', '以下为上一次有效配置，当前文件有错误。'));
   const table = document.createElement('table');
   const head = document.createElement('thead');
   const header = document.createElement('tr');
@@ -115,7 +114,7 @@ function effectivePanel(input: InputSnapshot) {
     body.append(row);
   };
   for (const [path, value] of Object.entries(flatten({ style: input.config.style }))) add(path, value, input.config.origins[path] ?? 'runtime');
-  const scheme = input.config.schemes[selectedScheme];
+  const scheme = input.config.schemes[session.view.selection.scheme];
   if (scheme) for (const [key, value] of Object.entries(scheme.colors)) add(`colors/${key}`, value, scheme.origins[key]);
   table.append(body); panel.append(table);
 }
@@ -125,9 +124,9 @@ function updateControls(input: InputSnapshot) {
   $('scenes').replaceChildren();
   for (const [index, scene] of input.scenes.entries()) {
     const button = node('button', 'scene-button');
-    button.dataset.id = scene.id; button.setAttribute('aria-pressed', String(scene.id === selectedScene));
+    button.dataset.id = scene.id; button.setAttribute('aria-pressed', String(scene.id === session.view.selection.scene));
     button.append(node('span', 'scene-index', String(index + 1).padStart(2, '0')), node('span', '', scene.name));
-    button.onclick = () => { selectedScene = scene.id; void render(); };
+    button.onclick = () => { void session.dispatch({ type: 'select', scene: scene.id }); };
     $('scenes').append(button);
   }
   const select = $<HTMLSelectElement>('scheme'); select.replaceChildren();
@@ -137,141 +136,60 @@ function updateControls(input: InputSnapshot) {
     const option = document.createElement('option'); option.value = scheme.id; option.textContent = scheme.name;
     select.append(option);
   }
-  select.value = selectedScheme;
+  select.value = session.view.selection.scheme;
   $<HTMLButtonElement>('dark').disabled = !config.selected.dark;
 }
 
-async function render(): Promise<BrowserReport | null> {
-  const token = ++renderId;
-  api.state = 'loading'; api.report = null;
-  const input = snapshot?.config.ok ? snapshot : lastValid;
-  if (!input) {
-    api.state = 'error';
-    $('preview').replaceChildren(node('div', 'empty-preview', '修正配置后，这里会自动更新。'));
-    return null;
+function paintWorkbench(view: PreviewView) {
+  const { snapshot, displayInput: input, selection, report } = view;
+  if (snapshot) {
+    const basename = snapshot.file.split(/[\\/]/).at(-1)!;
+    $('filename').textContent = basename; $('filename').title = snapshot.file;
+    $('source-name').textContent = basename; $('source-name').title = snapshot.file;
+    $('source-meta').textContent = `默认配置 ${snapshot.defaults.configVersion} · ${snapshot.defaults.commit.slice(0, 7)}`;
+    $('hash').textContent = `SHA256 ${snapshot.sha256.slice(0, 12)}`; $('hash').title = snapshot.sha256;
+    $('source-code').textContent = snapshot.source;
   }
-  const scheme = input.config.schemes[selectedScheme];
-  const scene = input.scenes.find((s) => s.id === selectedScene);
-  if (!scheme || !scene) { api.state = 'error'; return null; }
-  const schemeErrors = scheme.diagnostics.filter((d) => d.level === 'error');
-  if (schemeErrors.length) {
-    api.state = 'error';
-    $('error-banner').hidden = false;
-    $('error-banner').textContent = `配色「${scheme.name}」无效。当前画面不是此配色的有效结果：${schemeErrors[0].message}`;
-    $('stage').classList.add('stale');
-    $('stage-description').textContent = '已过期 · 上一次有效预览';
-    diagnosticsPanel([...input.config.diagnostics, ...scheme.diagnostics]);
-    $('render-status').textContent = '所选配色无效 · 画面已过期';
-    return null;
-  }
-  if (snapshot?.config.ok && !disconnected && !readFailed) {
-    $('error-banner').hidden = true;
-    $('stage').classList.remove('stale');
-  }
-  if (!canvasManual) canvasDark = mode === 'dark';
-  $('stage').classList.toggle('dark', canvasDark);
-  $('preview').style.zoom = String(zoom);
-  $('preview-title').textContent = scheme.name;
-  $('scene-name').textContent = scene.name;
-  $('layout-name').textContent = input.config.style.vertical_text ? '文字竖排' : input.config.style.horizontal ? '横排候选' : '竖排候选';
-  $('scale-note').textContent = `${zoom === 1 ? '1:1 · ' : ''}${Math.round(zoom * 100)}%`;
-  $('stage-description').textContent = disconnected || readFailed ? '连接中断 · 画面可能已过期' : snapshot?.config.ok ? '浏览器仿真' : '已过期 · 上一次有效配置';
-  for (const button of $('scenes').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.id === selectedScene));
-  $<HTMLSelectElement>('scheme').value = selectedScheme;
-  $('light').setAttribute('aria-pressed', String(mode === 'light'));
-  $('dark').setAttribute('aria-pressed', String(mode === 'dark'));
-  $('swatches').replaceChildren(...['back_color', 'border_color', 'candidate_text_color', 'label_color', 'hilited_candidate_back_color', 'hilited_candidate_text_color', 'hilited_mark_color'].map((key) => {
-    const swatch = node('span'); swatch.style.background = scheme.colors[key]; swatch.title = `${key}: ${scheme.colors[key]}`; return swatch;
-  }));
-  $('scheme-author').textContent = scheme.author;
-  const root = renderCandidate(input.config, scheme, scene);
-  $('preview').replaceChildren(root);
-  await document.fonts.ready;
-  if (token !== renderId) return null;
-  refreshCandidateLayout(root);
-  await nextFrame(); await nextFrame();
-  if (token !== renderId) return null;
-  const report = inspectRender(root, input.config, scheme, scene, input.sha256);
-  currentDiagnostics = snapshot?.config.ok ? report.diagnostics : [...(snapshot?.config.diagnostics ?? [])];
-  diagnosticsPanel(currentDiagnostics);
-  effectivePanel(input);
-  if (!snapshot?.config.ok || disconnected || readFailed) {
-    api.state = 'error';
-    $('render-status').textContent = disconnected || readFailed ? '连接中断 · 画面可能已过期' : '配置错误 · 画面已过期';
-    return null;
-  }
-  const errors = report.diagnostics.filter((d) => d.level === 'error');
-  const warnings = report.diagnostics.filter((d) => d.level === 'warning');
-  $('render-status').textContent = errors.length ? '此配色无法正确渲染' : warnings.length ? `已更新 · ${warnings.length} 项提示` : '已更新 · 配置已同步';
-  $('render-status').classList.toggle('with-warning', warnings.length > 0);
-  api.report = report; api.state = errors.length ? 'error' : 'ready';
-  return report;
-}
-
-async function refresh() {
-  const request = ++requestId;
-  try {
-    const response = await fetch('/api/config', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const next: InputSnapshot = await response.json();
-    if (request !== requestId) return;
-    readFailed = false;
-    const previous = snapshot;
-    snapshot = next;
-    const basename = next.file.split(/[\\/]/).at(-1)!;
-    $('filename').textContent = basename; $('filename').title = next.file;
-    $('source-name').textContent = basename; $('source-name').title = next.file;
-    $('source-meta').textContent = `默认配置 ${next.defaults.configVersion} · ${next.defaults.commit.slice(0, 7)}`;
-    $('hash').textContent = `SHA256 ${next.sha256.slice(0, 12)}`; $('hash').title = next.sha256;
-    $('source-code').textContent = next.source;
-    $('error-banner').hidden = next.config.ok;
-    $('stage').classList.toggle('stale', !next.config.ok);
-    if (!next.config.ok) {
-      $('error-banner').textContent = `${lastValid ? '画面已过期。' : ''}${next.config.diagnostics.find((d) => d.level === 'error')?.message ?? '配置无效'}`;
-      currentDiagnostics = next.config.diagnostics; diagnosticsPanel(currentDiagnostics);
-      api.state = 'error'; api.report = null;
-    } else {
-      lastValid = next;
-      if (mode === 'dark' && !next.config.selected.dark) mode = 'light';
-      if (!Object.hasOwn(next.config.schemes, selectedScheme) || !previous || selectedScheme === previous.config.selected[mode]) selectedScheme = next.config.selected[mode] ?? next.config.selected.light;
-      if (!next.scenes.some((s) => s.id === selectedScene)) selectedScene = next.scenes[0].id;
-      updateControls(next);
+  $('connection').textContent = !view.connected ? '连接中断' : capture ? '固定快照' : '实时同步';
+  $('connection').classList.toggle('offline', !view.connected);
+  $('error-banner').hidden = view.state !== 'error';
+  $('error-banner').textContent = view.reason ?? '';
+  $('stage').classList.toggle('stale', view.freshness === 'stale' || view.state === 'error');
+  $('stage').classList.toggle('dark', selection.canvasDark);
+  $('preview').style.zoom = String(selection.zoom);
+  $<HTMLSelectElement>('zoom').value = String(selection.zoom);
+  $('scale-note').textContent = `${selection.zoom === 1 ? '1:1 · ' : ''}${Math.round(selection.zoom * 100)}%`;
+  $('stage-description').textContent = view.freshness === 'stale' ? '已过期 · 上一次有效预览' : '浏览器仿真';
+  if (input) {
+    if (controlsInput !== input) { controlsInput = input; updateControls(input); }
+    const scheme = input.config.schemes[selection.scheme], scene = input.scenes.find((s) => s.id === selection.scene);
+    $('preview-title').textContent = scheme?.name ?? '皮肤预览';
+    $('scene-name').textContent = scene?.name ?? '—';
+    $('layout-name').textContent = input.config.style.vertical_text ? '文字竖排' : input.config.style.horizontal ? '横排候选' : '竖排候选';
+    for (const button of $('scenes').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.id === selection.scene));
+    $<HTMLSelectElement>('scheme').value = selection.scheme;
+    $('light').setAttribute('aria-pressed', String(selection.mode === 'light'));
+    $('dark').setAttribute('aria-pressed', String(selection.mode === 'dark'));
+    if (scheme) {
+      $('swatches').replaceChildren(...(['back_color', 'border_color', 'candidate_text_color', 'label_color', 'hilited_candidate_back_color', 'hilited_candidate_text_color', 'hilited_mark_color'] as ColorKey[]).map((key) => {
+        const swatch = node('span'); swatch.style.background = scheme.colors[key]; swatch.title = `${key}: ${scheme.colors[key]}`; return swatch;
+      }));
+      $('scheme-author').textContent = scheme.author;
     }
-    await render();
-  } catch (error) {
-    readFailed = true;
-    api.state = 'error'; api.report = null;
-    $('connection').textContent = '连接中断'; $('connection').classList.add('offline');
-    $('error-banner').hidden = false; $('error-banner').textContent = `无法读取配置：${(error as Error).message}。当前画面不可作为最新结果。`;
-    $('stage').classList.add('stale');
-  }
+    effectivePanel(input);
+  } else if (view.state === 'error') $('preview').replaceChildren(node('div', 'empty-preview', '修正配置后，这里会自动更新。'));
+  diagnosticsPanel(view.diagnostics);
+  const warnings = report?.diagnostics.filter((d) => d.level === 'warning').length ?? 0;
+  $('render-status').textContent = view.state === 'loading' ? '正在更新预览…' : view.state === 'error' ? view.connected ? '配置错误 · 画面已过期' : '连接中断 · 画面可能已过期'
+    : warnings ? `已更新 · ${warnings} 项提示` : '已更新 · 配置已同步';
+  $('render-status').classList.toggle('with-warning', warnings > 0);
 }
+session.subscribe(paintWorkbench);
 
-api.select = async ({ scheme, scene }) => {
-  if (!snapshot?.config.ok || disconnected || readFailed) throw new Error('当前配置无效或监听连接中断，不能生成截图。');
-  if (scheme) {
-    if (!Object.hasOwn(snapshot.config.schemes, scheme)) throw new Error(`找不到配色 ${scheme}`);
-    selectedScheme = scheme;
-    mode = scheme === snapshot.config.selected.dark ? 'dark' : 'light';
-  }
-  if (scene) {
-    if (!snapshot.scenes.some((s) => s.id === scene)) throw new Error(`找不到场景 ${scene}`);
-    selectedScene = scene;
-  }
-  zoom = 1; $<HTMLSelectElement>('zoom').value = '1';
-  const report = await render();
-  if (!report || api.state === 'error') throw new Error('渲染失败。');
-  return report;
-};
-
-$<HTMLSelectElement>('scheme').onchange = (e) => { selectedScheme = (e.target as HTMLSelectElement).value; mode = selectedScheme === snapshot?.config.selected.dark ? 'dark' : 'light'; void render(); };
-for (const key of ['light', 'dark'] as const) $(key).onclick = () => {
-  const input = snapshot?.config.ok ? snapshot : lastValid;
-  const id = input?.config.selected[key];
-  if (id) { selectedScheme = id; mode = key; void render(); }
-};
-$<HTMLSelectElement>('zoom').onchange = (e) => { zoom = Number((e.target as HTMLSelectElement).value); void render(); };
-$('canvas-tone').onclick = () => { canvasManual = true; canvasDark = !canvasDark; void render(); };
+$<HTMLSelectElement>('scheme').onchange = (e) => { void session.dispatch({ type: 'select', scheme: (e.target as HTMLSelectElement).value }); };
+for (const mode of ['light', 'dark'] as const) $(mode).onclick = () => { void session.dispatch({ type: 'select', mode }); };
+$<HTMLSelectElement>('zoom').onchange = (e) => { void session.dispatch({ type: 'zoom', zoom: Number((e.target as HTMLSelectElement).value) }); };
+$('canvas-tone').onclick = () => { void session.dispatch({ type: 'canvas' }); };
 $('inspect-button').onclick = () => { $<HTMLDetailsElement>('inspector').open = true; $('inspector').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-panel]')];
 for (const tab of tabs) {
@@ -288,15 +206,11 @@ for (const tab of tabs) {
 }
 
 if (import.meta.hot) {
-  import.meta.hot.on('weasel:updated', () => { void refresh(); });
-  import.meta.hot.on('vite:ws:connect', () => { disconnected = false; $('connection').textContent = '实时同步'; $('connection').classList.remove('offline'); void refresh(); });
-  import.meta.hot.on('vite:ws:disconnect', () => { disconnected = true; $('connection').textContent = '连接中断'; $('connection').classList.add('offline'); $('stage').classList.add('stale'); api.state = 'error'; api.report = null; $('error-banner').hidden = false; $('error-banner').textContent = '文件监听连接中断，当前画面可能已过期。'; });
+  import.meta.hot.on('weasel:updated', () => { void session.dispatch({ type: 'refresh' }); });
+  import.meta.hot.on('vite:ws:connect', () => { void session.dispatch({ type: 'connection', connected: true }); });
+  import.meta.hot.on('vite:ws:disconnect', () => { void session.dispatch({ type: 'connection', connected: false }); });
+  import.meta.hot.dispose(() => session.dispose());
 }
-if (capture) $('connection').textContent = '固定快照';
-else $('connection').textContent = '实时同步';
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { void render(); }, 80);
-});
-await refresh();
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { void session.dispatch({ type: 'repaint' }); }, 80); });
+await session.dispatch({ type: 'refresh' });

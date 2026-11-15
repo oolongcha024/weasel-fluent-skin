@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { resolveConfig } from '../src/core/config';
 import { readYaml } from '../src/core/yaml';
 import { abbreviate, candidateLabel, preeditContent } from '../src/core/text';
-import { fontSpec } from '../src/render/fonts';
-import type { Scene } from '../src/core/types';
+import { fontSpec } from '../src/core/font';
+import type { Scene } from '../src/core/scenes';
 
 const defaults = readYaml(await readFile(new URL('../data/weasel-defaults.yaml', import.meta.url), 'utf8')).data;
 const style = resolveConfig('patch: {}', defaults).style;

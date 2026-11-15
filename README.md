@@ -38,12 +38,12 @@ pnpm capture --config examples/fluent.custom.yaml
 
 | 文件 | 内容 |
 | --- | --- |
-| `manifest.json` | 运行状态、输入摘要、默认配置版本、视口、浏览器版本、诊断和场景产物索引 |
+| `manifest.json` | 运行状态、完整快照身份、默认配置版本、视口、浏览器版本、诊断和场景产物索引（`schemaVersion: 2`） |
 | `input.yaml` | 此次渲染使用的原始配置快照 |
 | `effective.json` | 生效样式、配色、补丁合并结果与参数来源 |
 | `scenes.json` | 此次渲染使用的场景 |
 | `01-everyday.png` 等 | 每个场景的页面截图，浅色、深色使用不同编号 |
-| 同名 `.json` | 当前配色与场景、输入摘要、字体可用性、窗口尺寸、诊断、DOM 和设备像素布局矩形 `geometry` |
+| 同名 `.json` | 当前配色与场景、快照身份、字体可用性、窗口尺寸、诊断、DOM、设备像素布局矩形 `geometry` 和完整绘制计划 `plan` |
 | 同名 `.html` | 内含渲染 CSS 的独立预览 HTML，可离线打开；字体仍依赖打开它的系统 |
 
 默认截图覆盖配置引用的浅色、深色方案与全部场景，固定 CSS 视口 1600 × 1000、设备缩放 1、预览缩放 100%。也可以指定一个配色：
@@ -63,6 +63,10 @@ pnpm capture --config examples/fluent.custom.yaml --dpr 1.5
 语法错误、关键参数无效、引用不存在的配色、浏览器渲染失败时返回非零退出码。配置错误时会输出失败清单和诊断，不生成图片。`status: complete` 表示本次检查执行完成，仍需阅读诊断并查看图片；不能据此认定与 Windows 原生渲染完全一致。
 
 开发模式还提供只读的 `/api/config`，浏览器中的 `window.__WEASEL_PREVIEW__` 包含 `state`、`report` 和异步 `select({ scheme, scene })`，便于自动检查。
+
+`state` 和 `report` 为只读。只有当前有效且已完成渲染的画面才会发布 `report`；配置错误、读取失败、连接中断或新渲染尚未完成时，`report` 为 `null`。`select` 会把预览缩放重置为 100%，等待字体、布局和绘制完成后返回结果；被更新请求取代时拒绝返回旧结果。
+
+每份报告的 `identity` 包含 `inputSha256`、`defaultsSha256`、`scenesSha256` 和 `layoutBasis`。截图命令核对完整身份及场景、配色选择；原有 `sha256` 字段继续表示 YAML 摘要。
 
 ## 配置解释
 
@@ -123,6 +127,8 @@ pnpm capture --config examples/fluent.custom.yaml --scenes examples/scenes.json
 
 截图报告的 `geometry` 包含 `basis`、`density`、换算后的 `layout`，以及窗口、候选、文字、高亮、标记和翻页矩形。候选和预编辑还包含 `rounding`：实际圆角半径、按左上/右上/右下/左下排列的逐角开关，以及是否使用贴边圆角规则。`row` 在横排时表示行，在文字竖排折列时表示列。尺寸与坐标均为设备像素，除以 `density` 得到 CSS 像素；原始生效配置仍保留逻辑值。
 
+`plan` 在同一份几何结果上补齐字体、文字颜色、逐角圆角、阴影输入和背景绘制顺序。`backgrounds` 按实际绘制顺序排列；阴影包含偏移/环形类型、缓冲画布、模糊 sigma 和待绘制形状。DOM 绘制与 agent 的结构化检查使用同一份计划。
+
 布局另用原生 C++ 的 `DoLayout` 方法接入固定字体尺寸进行对照，覆盖横排、竖排、文字竖排和文字竖排折列。1,200 组固定种子组合的窗口与可见文字矩形一致；其中 16 组原生输出保存在 [tests/fixtures/native-layout.json](tests/fixtures/native-layout.json)，作为独立于浏览器排版的回归基准。该对照替换了 Windows 的字体测量和状态图标接口，不能据此推断 DirectWrite 或 GDI+ 像素完全一致。
 
 ## 已知边界
@@ -143,16 +149,34 @@ pnpm check
 pnpm test
 pnpm test:browser
 pnpm build
+pnpm verify:native
 ```
 
-`test` 验证补丁语义、颜色、参数来源、错误处理、场景校验、文字处理、圆角，以及固定字体尺寸下的原生矩形输出；`test:browser` 需要 Chromium，验证真实截图输出、快照一致性、失败隔离，以及 100%/150% 下的尺寸、标记、注释、预编辑、阴影、绘制顺序和折行。
+`test` 验证补丁语义、配置、原生矩形、绘制计划，以及预览状态中的并发、断线、错误恢复与完整快照身份。`test:browser` 需要 Chromium，验证实际字体与绘制、截图导出、文件监听恢复和并发选择；绘制顺序等纯规则通过计划检查，避免绑定 DOM 层次。
+
+`verify:native` 需要 C++17 编译器（默认 `g++`，可用 `CXX` 指定）和网络。它读取 [scripts/native/reference.json](scripts/native/reference.json) 固定的上游 commit、源码摘要、测量参数和随机种子，下载并校验三个原生布局文件，在临时目录编译原始 `DoLayout` 方法，再对照 1,200 组布局。报告存入独立的 `artifacts/native-reference/<运行编号>/report.json`，不一致时返回非零退出码。编译产物会清理，上游源码不打包到工具中。
+
+已在本地准备对应版本源码时可离线执行，同样会核对摘要：
+
+```bash
+pnpm verify:native --upstream /path/to/weasel/WeaselUI
+```
+
+## 源码中的 module 与 seam
+
+浏览器渲染的 external interface 为 `createBrowserPreview(host).render(request)`：一次调用包含字体就绪、测量、布局、绘制和报告，不要求调用方手动组织渲染步骤。`dispose()` 会使未完成工作失效并释放预览。页面和自动化入口都通过 `PreviewSession` 管理输入、选择、过期画面与导出许可。
+
+纯计算的 `buildRenderPlan` 是绘制规则的检查 seam；其中字体测量使用注入的 adapter。实际浏览器测量和原生对照的固定测量各自满足同一个 interface。DOM/SVG adapter 只绘制计划中的结果。布局、圆角和阴影的算法保持在纯计算 module 中，逻辑布局与设备像素布局使用不同类型，配置/场景/几何/快照/报告各自拥有类型定义。
 
 ```text
-src/core/     配置解析、补丁、生效值、颜色与场景（不依赖 DOM）
-src/render/   候选窗口 DOM/CSS、字体探测与渲染报告
-src/server/   本地文件读取、监听与预览服务
-src/main.ts   浏览器界面
-scripts/      开发入口与独立截图命令
+src/core/       配置、场景、布局、字体描述、阴影与绘制计划（不依赖 DOM）
+src/input/      文件读取、快照与完整身份
+src/preview/    PreviewSession、报告与自动化 interface
+src/render/     浏览器渲染生命周期、字体测量、DOM/SVG adapter
+src/server/     Vite 文件监听与快照传输 adapter
+src/capture/    固定快照捕获、资源清理与产物格式
+src/main.ts     浏览器界面与交互绑定
+scripts/        开发/截图入口与可重复运行的原生对照
 ```
 
 项目独立实现，参考了 [小狼毫官方文档](https://github.com/rime/weasel/wiki/Weasel-定制化) 和 [JGCindy/rime-weasel-skin-studio](https://github.com/JGCindy/rime-weasel-skin-studio) 的功能思路，没有引入该编辑器源码。官方文档本地快照见 [docs/weasel-official](docs/weasel-official/README.md)。

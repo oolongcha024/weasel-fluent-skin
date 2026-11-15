@@ -1,15 +1,10 @@
-import type { PreviewGeometry } from './layout';
+import type { Diagnostic } from './diagnostics';
+import type { Dict } from './yaml';
 
-export type Dict = Record<string, unknown>;
 export type Origin = 'user' | 'default' | 'runtime' | 'derived';
-export interface Diagnostic {
-  level: 'error' | 'warning';
-  code: string;
-  message: string;
-  path?: string;
-  line?: number;
-}
-export interface Layout {
+export interface Layout<Units extends 'logical' | 'device' = 'logical'> {
+  /** Type-only coordinate space: prevents feeding scaled values back as configuration. */
+  readonly units?: Units;
   min_width: number; min_height: number; max_width: number; max_height: number;
   margin_x: number; margin_y: number; border_width: number;
   spacing: number; candidate_spacing: number; hilite_spacing: number;
@@ -31,7 +26,7 @@ export interface Scheme {
   name: string;
   author: string;
   format: 'abgr' | 'argb' | 'rgba';
-  colors: Record<string, string>;
+  colors: Colors;
   origins: Record<string, Origin>;
   diagnostics: Diagnostic[];
 }
@@ -44,31 +39,8 @@ export interface ConfigResult {
   origins: Record<string, Origin>;
   merged: Dict;
 }
-export interface Candidate { text: string; comment?: string; label?: string }
-export interface Scene {
-  id: string; name: string; preedit: string; highlightedPreedit?: string; commitPreview?: string;
-  highlighted: number; candidates: Candidate[];
-  currentPage?: number; isLastPage?: boolean;
-}
-export interface InputSnapshot {
-  file: string;
-  source: string;
-  sha256: string;
-  readAt: string;
-  defaults: { commit: string; sha256: string; configVersion: string; url: string };
-  config: ConfigResult;
-  scenes: Scene[];
-  scenesSha256: string;
-}
-export interface BrowserReport {
-  sha256: string;
-  scheme: string;
-  scene: string;
-  colors: Record<string, string>;
-  fonts: { requested: string; available: boolean; css: string }[];
-  bounds: { x: number; y: number; width: number; height: number } | null;
-  viewport: { width: number; height: number; devicePixelRatio: number };
-  diagnostics: Diagnostic[];
-  html: string;
-  geometry: PreviewGeometry | null;
-}
+
+export type DeviceLayout = Layout<'device'>;
+export const COLOR_KEYS = ['back_color', 'text_color', 'shadow_color', 'prevpage_color', 'nextpage_color', 'candidate_text_color', 'candidate_back_color', 'border_color', 'hilited_text_color', 'hilited_back_color', 'hilited_candidate_text_color', 'hilited_candidate_back_color', 'candidate_border_color', 'hilited_candidate_border_color', 'candidate_shadow_color', 'hilited_candidate_shadow_color', 'hilited_shadow_color', 'label_color', 'hilited_label_color', 'comment_text_color', 'hilited_comment_text_color', 'hilited_mark_color'] as const;
+export type ColorKey = typeof COLOR_KEYS[number];
+export type Colors = Record<ColorKey, string>;

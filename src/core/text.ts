@@ -1,4 +1,5 @@
-import type { Scene, Style } from './types';
+import type { Style } from './config-model';
+import type { Scene } from './scenes';
 
 export function formatLabel(format: string, label: string): string {
   return format.replace(/%%|%(-?)(\d*)s/g, (token, left: string, width: string) => {

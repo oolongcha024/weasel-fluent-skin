@@ -1,24 +1,10 @@
-import type { Layout, Scene, Style } from './types';
+import type { Layout, DeviceLayout, Colors, Style } from './config-model';
+import type { Scene } from './scenes';
 import { abbreviate, candidateLabel, formatLabel, preeditContent } from './text';
-import { prepareRounding, roundShape, type RoundShape } from './rounding';
-export { formatLabel } from './text';
+import { prepareRounding, roundShape } from './rounding';
+import { LAYOUT_BASIS, type Rect, type TextRole, type CandidateGeometry, type TextRun, type MeasureText, type PreviewGeometry } from './geometry';
+import { shadowInsets } from './shadow';
 
-export interface Size { width: number; height: number }
-export interface Rect extends Size { x: number; y: number }
-export type TextRole = 'text' | 'label' | 'comment' | 'preedit';
-export interface TextRun { text: string; role: TextRole; rect: Rect; highlighted?: boolean }
-export interface CandidateGeometry {
-  index: number; row: number; bounds: Rect; background: Rect;
-  label: TextRun | null; text: TextRun; comment: TextRun | null; rounding: RoundShape;
-}
-export interface PreviewGeometry extends Size {
-  basis: 'weasel-0.17.4'; density: number; layout: Layout;
-  candidates: CandidateGeometry[];
-  preedit: { bounds: Rect; runs: TextRun[]; background: Rect | null; rounding: RoundShape } | null;
-  pages: { previous: Rect; next: Rect } | null;
-  mark: { rect: Rect; text: string } | null;
-}
-export type MeasureText = (text: string, role: TextRole) => Size;
 const rect = (x: number, y: number, width: number, height: number): Rect => ({ x, y, width, height });
 const endX = (r: Rect) => r.x + r.width;
 const move = (r: Rect, x: number, y: number) => { r.x += x; r.y += y; };
@@ -30,12 +16,12 @@ const visible = (color: string) => color.slice(-2) !== '00';
  * VHorizontalLayout.cpp and WeaselPanel.cpp. Font measurement is injected.
  * Status icons and auxiliary notifications are outside the composing scenes.
  */
-export function scaleLayout(layout: Layout, density: number): Layout {
+export function scaleLayout(layout: Layout, density: number): DeviceLayout {
   return Object.fromEntries(Object.entries(layout).map(([key, value]) => [key,
-    typeof value === 'number' ? Math.trunc(value * density) : value])) as unknown as Layout;
+    typeof value === 'number' ? Math.trunc(value * density) : value])) as unknown as DeviceLayout;
 }
 
-export function calculateLayout(style: Style, colors: Record<string, string>, scene: Scene, measure: MeasureText, density = 1): PreviewGeometry {
+export function calculateLayout(style: Style, colors: Colors, scene: Scene, measure: MeasureText, density = 1): PreviewGeometry {
   const l = scaleLayout(style.layout, density);
   const mx = Math.max(Math.abs(l.margin_x), l.hilite_padding_x), my = Math.max(Math.abs(l.margin_y), l.hilite_padding_y);
   const vertical = style.vertical_text;
@@ -87,9 +73,7 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
   };
   // Shadow/border buffers influence the original horizontal minimum-width and
   // vertical-text minimum-size calculations. Exclude them from painted bounds.
-  const shadowBuffer = l.shadow_radius ? 2 * l.shadow_radius - (l.shadow_offset_x || l.shadow_offset_y ? Math.trunc(l.shadow_radius / 2) : 0) : 0;
-  const ox = shadowBuffer + (l.shadow_radius ? Math.abs(l.shadow_offset_x) : 0) + 2 * l.border_width;
-  const oy = shadowBuffer + (l.shadow_radius ? Math.abs(l.shadow_offset_y) : 0) + 2 * l.border_width;
+  const { x: ox, y: oy } = shadowInsets(l);
   let width = 0, height = 0;
   if ((!vertical && style.horizontal) || (vertical && style.vertical_text_with_wrap)) {
     // Horizontal candidates and wrapped vertical text use the same packing
@@ -246,7 +230,7 @@ export function calculateLayout(style: Style, colors: Record<string, string>, sc
         : rect(box.x, box.y + Math.trunc((box.height - extent) / 2), thickness, extent) };
     }
   }
-  const geometry: PreviewGeometry = { basis: 'weasel-0.17.4', width, height, density, layout: l, candidates, preedit, pages, mark };
+  const geometry: PreviewGeometry = { basis: LAYOUT_BASIS, width, height, density, layout: l, candidates, preedit, pages, mark };
   prepareRounding(geometry, style);
   return geometry;
 }

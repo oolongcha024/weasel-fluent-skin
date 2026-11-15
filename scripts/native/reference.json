@@ -1,0 +1,29 @@
+{
+  "commit": "9cc96e20dc71b80876b12f689bb5863c76c2a7ed",
+  "version": "0.17.4",
+  "seed": 73421,
+  "cases": 1200,
+  "measurements": {
+    "text": [
+      16,
+      20
+    ],
+    "preedit": [
+      16,
+      20
+    ],
+    "label": [
+      6,
+      14
+    ],
+    "comment": [
+      8,
+      12
+    ]
+  },
+  "sources": {
+    "HorizontalLayout.cpp": "9c58cdd1a62b2527c042028b80bdd34e693d49fb8300a9bffae8d8000954744a",
+    "VerticalLayout.cpp": "328566658d6ef52994032f1f60197a307f4586ba6158b73b01f22496bfd8b319",
+    "VHorizontalLayout.cpp": "cb6fe5cb73dbc89aed9fffb0039a0e081e7038f6a3cf264c07baff2f1e361ecf"
+  }
+}

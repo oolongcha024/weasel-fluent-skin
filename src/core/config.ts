@@ -1,7 +1,10 @@
 import { composite, rimeColor } from './color';
+import { fontSpec } from './font';
 import { applyPatch, flatten, pathSegment } from './patch';
 import { isMap, readYaml } from './yaml';
-import type { ConfigResult, Diagnostic, Dict, Layout, Origin, Scheme, Style } from './types';
+import type { Diagnostic } from './diagnostics';
+import type { Dict } from './yaml';
+import { COLOR_KEYS, type ConfigResult, type Colors, type ColorKey, type Layout, type Origin, type Scheme, type Style } from './config-model';
 
 const STYLE_RUNTIME = {
   font_face: '', label_font_face: '', comment_font_face: '',
@@ -18,7 +21,7 @@ const STYLE_RUNTIME = {
   },
 } as const;
 
-const COLOR_FALLBACKS: Record<string, string | string[]> = {
+const COLOR_FALLBACKS: Record<ColorKey, string | ColorKey[]> = {
   back_color: '#ffffffff', text_color: '#000000ff', shadow_color: '#00000000',
   prevpage_color: '#00000000', nextpage_color: '#00000000',
   candidate_text_color: ['text_color'], candidate_back_color: '#00000000',
@@ -39,8 +42,9 @@ function resolveScheme(id: string, raw: Dict, allOrigins: Record<string, Origin>
   const format = raw.color_format === undefined ? 'abgr' : String(raw.color_format);
   const validFormat = format === 'abgr' || format === 'argb' || format === 'rgba';
   if (!validFormat) diagnostics.push({ level: 'error', code: 'color-format', path: `preset_color_schemes/${id}/color_format`, message: `不支持颜色格式 ${format}。` });
-  const colors: Record<string, string> = {}, origins: Record<string, Origin> = {};
-  for (const [key, fallback] of Object.entries(COLOR_FALLBACKS)) {
+  const colors = {} as Colors, origins: Record<string, Origin> = {};
+  for (const key of COLOR_KEYS) {
+    const fallback = COLOR_FALLBACKS[key];
     const path = `preset_color_schemes/${pathSegment(id)}/${pathSegment(key)}`;
     if (raw[key] !== undefined) {
       try { colors[key] = rimeColor(raw[key], validFormat ? format : 'abgr'); }
@@ -116,7 +120,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
   let point = number('style/font_point', undefined, true);
   if (point <= 0) { point = 12; origins['style/font_point'] = 'derived'; }
   const layout = {} as Layout;
-  for (const key of Object.keys(STYLE_RUNTIME.layout) as (keyof Layout)[]) {
+  for (const key of Object.keys(STYLE_RUNTIME.layout) as (Exclude<keyof Layout, 'units'>)[]) {
     if (key === 'align_type') continue;
     const signed = ['margin_x', 'margin_y', 'shadow_offset_x', 'shadow_offset_y'].includes(key);
     let alias: string | undefined;
@@ -180,7 +184,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
   if (type.includes('fullscreen')) diagnostics.push({ level: 'warning', code: 'unsupported', path: 'style/layout/type', message: '尚未模拟全屏候选窗口。' });
   if (layout.max_width || layout.max_height) diagnostics.push({ level: 'warning', code: 'approximation', path: 'style/layout', message: '候选行按原生矩形规则排列；单条文字的折行由浏览器测量，可能与 DirectWrite 不同。' });
   for (const key of ['font_face', 'label_font_face', 'comment_font_face'] as const) {
-    if (style[key].split(',').some((f) => f.split(':').slice(1).some((part) => /^[\da-f]+$/i.test(part.trim())))) diagnostics.push({ level: 'warning', code: 'font-range', path: `style/${key}`, message: '字体码位范围未模拟；浏览器使用字体回退链。' });
+    if (fontSpec(style[key]).hasRanges) diagnostics.push({ level: 'warning', code: 'font-range', path: `style/${key}`, message: '字体码位范围未模拟；浏览器使用字体回退链。' });
   }
   if (!isMap(merged.style)) diagnostics.push({ level: 'error', code: 'style', path: 'style', message: 'style 必须是字典。' });
   const schemes: Record<string, Scheme> = Object.create(null);

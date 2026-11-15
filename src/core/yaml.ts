@@ -1,5 +1,6 @@
 import { parseDocument, visit } from 'yaml';
-import type { Diagnostic, Dict } from './types';
+import type { Diagnostic } from './diagnostics';
+export type Dict = Record<string, unknown>;
 
 export const isMap = (v: unknown): v is Dict => !!v && typeof v === 'object' && !Array.isArray(v);
 

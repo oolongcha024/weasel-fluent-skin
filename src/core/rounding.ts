@@ -1,8 +1,6 @@
-import type { PreviewGeometry, Rect } from './layout';
-import type { Style } from './types';
+import type { PreviewGeometry, Rect, RoundShape } from './geometry';
+import type { Style } from './config-model';
 
-/** Corner order follows CSS: top-left, top-right, bottom-right, bottom-left. */
-export interface RoundShape { radius: number; corners: [boolean, boolean, boolean, boolean]; hemispherical: boolean }
 export const roundShape = (radius: number): RoundShape => ({ radius, corners: [true, true, true, true], hemispherical: false });
 
 // StandardLayout compares the inflated highlight path to the window path inset

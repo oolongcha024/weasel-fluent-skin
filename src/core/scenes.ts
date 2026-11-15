@@ -1,4 +1,11 @@
-import type { Diagnostic, Scene } from './types';
+import type { Diagnostic } from './diagnostics';
+
+export interface Candidate { text: string; comment?: string; label?: string }
+export interface Scene {
+  id: string; name: string; preedit: string; highlightedPreedit?: string; commitPreview?: string;
+  highlighted: number; candidates: Candidate[];
+  currentPage?: number; isLastPage?: boolean;
+}
 
 export const DEFAULT_SCENES: Scene[] = [
   { id: 'everyday', name: '日常输入', preedit: 'chun ri', highlightedPreedit: 'chun', highlighted: 0,

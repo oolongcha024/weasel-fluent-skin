@@ -4,7 +4,8 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { ROOT, sha256 } from '../../src/server/server';
+import { ROOT } from '../../src/environment';
+import { sha256 } from '../../src/input/snapshot';
 
 function run(args: string[]) {
   return new Promise<{ code: number | null; output: string }>((resolve, reject) => {
@@ -38,6 +39,7 @@ test('capture CLI creates a frozen, reproducible bundle and fails without stale 
     const [successDir] = await readdir(out);
     const manifest = JSON.parse(await readFile(join(out, successDir, 'manifest.json'), 'utf8'));
     assert.equal(manifest.status, 'complete');
+    assert.equal(manifest.schemaVersion, 2);
     assert.equal(manifest.input.sha256, sha256(source));
     assert.equal(manifest.screenshots.length, 2);
     assert.equal(manifest.deviceScaleFactor, 1.5);
@@ -45,6 +47,9 @@ test('capture CLI creates a frozen, reproducible bundle and fails without stale 
     for (const shot of manifest.screenshots) {
       const report = JSON.parse(await readFile(join(out, successDir, shot.report), 'utf8'));
       assert.equal(report.sha256, manifest.input.sha256);
+      assert.deepEqual(report.identity, manifest.identity);
+      assert.deepEqual(report.plan.geometry, report.geometry);
+      assert.ok(report.plan.backgrounds.length > 0);
       assert.ok(report.bounds.width > 0);
       assert.equal(report.geometry.density, 1.5);
       assert.equal(report.geometry.basis, 'weasel-0.17.4');

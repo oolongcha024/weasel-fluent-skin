@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import { ROOT } from '../src/server/server';
+import { ROOT } from '../src/environment';
 
 export function options(kind: 'dev' | 'capture') {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {

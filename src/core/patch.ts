@@ -1,5 +1,7 @@
 import { isMap } from './yaml';
-import type { Dict, Diagnostic, Origin } from './types';
+import type { Dict } from './yaml';
+import type { Diagnostic } from './diagnostics';
+import type { Origin } from './config-model';
 
 const forbidden = new Set(['__proto__', 'constructor', 'prototype']);
 export const pathSegment = (key: string) => key.replace(/~/g, '~0').replace(/\//g, '~1');

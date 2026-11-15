@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { calculateLayout, type Rect } from '../src/core/layout';
-import type { Scene, Style } from '../src/core/types';
+import { calculateLayout } from '../src/core/layout';
+import type { Rect } from '../src/core/geometry';
+import type { Scene } from '../src/core/scenes';
+import type { Style } from '../src/core/config-model';
 
 // Expected rectangles were produced by the original 0.17.4 C++ DoLayout
 // methods, compiled in a temporary Linux harness. Only Windows rectangle types,
