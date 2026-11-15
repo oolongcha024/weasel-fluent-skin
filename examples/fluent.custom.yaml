@@ -1,31 +1,34 @@
-# 修改此文件并保存，浏览器会自动更新。颜色显式使用 ARGB。
+# Fluent 2 基准皮肤：中性浮层、蓝色选中态；颜色显式使用 ARGB。
+# 圆角参考 https://fluent2.microsoft.design/shapes
+# 小狼毫使用单层阴影近似 Fluent elevation，非 Acrylic / Mica。
 patch:
   "style/+":
     color_scheme: fluent_light
     color_scheme_dark: fluent_dark
-    font_face: "Microsoft YaHei UI, Noto Sans CJK SC, sans-serif"
+    font_face: "Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     label_font_face: "Segoe UI, Noto Sans, sans-serif"
-    comment_font_face: "Segoe UI, Noto Sans CJK SC, sans-serif"
-    font_point: 15
-    label_font_point: 11
-    comment_font_point: 10
+    comment_font_face: "Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    font_point: 12
+    label_font_point: 9
+    comment_font_point: 9
     horizontal: true
     inline_preedit: true
+    mark_text: ""
     label_format: "%s"
     layout:
       min_width: 0
       border_width: 1
-      margin_x: 16
-      margin_y: 12
-      candidate_spacing: 28
-      hilite_spacing: 7
-      hilite_padding_x: 9
-      hilite_padding_y: 7
-      corner_radius: 10
-      round_corner: 6
-      shadow_radius: 14
+      margin_x: 10
+      margin_y: 8
+      candidate_spacing: 18
+      hilite_spacing: 8
+      hilite_padding_x: 8
+      hilite_padding_y: 4
+      corner_radius: 8
+      round_corner: 4
+      shadow_radius: 16
       shadow_offset_x: 0
-      shadow_offset_y: 5
+      shadow_offset_y: 4
   "preset_color_schemes/+":
     fluent_light:
       name: "Fluent 浅色"
@@ -33,33 +36,33 @@ patch:
       color_format: argb
       back_color: 0xFFF9F9F9
       border_color: 0xFFE0E0E0
-      shadow_color: 0x18000000
+      shadow_color: 0x24000000
       text_color: 0xFF242424
       candidate_text_color: 0xFF242424
-      label_color: 0xFF8A8A8A
-      comment_text_color: 0xFF858585
+      label_color: 0xFF616161
+      comment_text_color: 0xFF616161
       hilited_text_color: 0xFF242424
       hilited_back_color: 0xFFEDEDED
-      hilited_candidate_back_color: 0xFFE8F0FA
-      hilited_candidate_text_color: 0xFF153C60
-      hilited_label_color: 0xFF356D9C
-      hilited_comment_text_color: 0xFF496D8B
+      hilited_candidate_back_color: 0xFFEBF3FC
+      hilited_candidate_text_color: 0xFF242424
+      hilited_label_color: 0xFF0F548C
+      hilited_comment_text_color: 0xFF0F548C
       hilited_mark_color: 0xFF0078D4
     fluent_dark:
       name: "Fluent 深色"
       author: "Weasel Studio"
       color_format: argb
       back_color: 0xFF292929
-      border_color: 0xFF414141
-      shadow_color: 0x38000000
+      border_color: 0xFF525252
+      shadow_color: 0x70000000
       text_color: 0xFFF2F2F2
       candidate_text_color: 0xFFEAEAEA
-      label_color: 0xFF999999
-      comment_text_color: 0xFFA0A0A0
+      label_color: 0xFFD6D6D6
+      comment_text_color: 0xFFD6D6D6
       hilited_text_color: 0xFFF2F2F2
       hilited_back_color: 0xFF3B3B3B
-      hilited_candidate_back_color: 0xFF344D61
-      hilited_candidate_text_color: 0xFFF2F7FC
-      hilited_label_color: 0xFFB2D8F9
-      hilited_comment_text_color: 0xFFB2CCE0
+      hilited_candidate_back_color: 0xFF0A2E4A
+      hilited_candidate_text_color: 0xFFF2F2F2
+      hilited_label_color: 0xFFB4D6FA
+      hilited_comment_text_color: 0xFFB4D6FA
       hilited_mark_color: 0xFF60CDFF
