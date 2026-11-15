@@ -1,5 +1,6 @@
 import type { BrowserReport, ConfigResult, Diagnostic, Scene, Scheme } from '../core/types';
 import { availableFonts, fontSpec } from './fonts';
+import { markMetrics } from './mark';
 import './candidate.css';
 
 const element = (tag: string, className: string, text?: string) => {
@@ -41,6 +42,14 @@ export function renderCandidate(config: ConfigResult, scheme: Scheme, scene: Sce
   win.style.setProperty('--item-gap', `${l.candidate_spacing}px`);
   win.style.setProperty('--inner-gap', `${l.hilite_spacing}px`);
   win.style.setProperty('--align', l.align_type === 'top' ? 'start' : l.align_type === 'bottom' ? 'end' : 'center');
+  const markEnabled = c.hilited_mark_color.slice(-2) !== '00';
+  const mark = markMetrics(s, markEnabled);
+  win.style.setProperty('--mark-slot', `${mark.slot}px`);
+  win.style.setProperty('--mark-thickness', `${mark.thickness}px`);
+  win.style.setProperty('--mark-height-adjustment', `${2 * (l.hilite_padding_y - l.round_corner)}px`);
+  win.style.setProperty('--mark-height-padding', `${2 * l.hilite_padding_y * .618}px`);
+  win.style.setProperty('--mark-width-adjustment', `${2 * (l.hilite_padding_x - l.round_corner)}px`);
+  win.style.setProperty('--mark-width-padding', `${2 * l.hilite_padding_x * .618}px`);
 
   let preeditText = scene.preedit;
   if (s.preedit_type === 'preview') preeditText = scene.candidates[scene.highlighted].text;
@@ -92,7 +101,7 @@ export function renderCandidate(config: ConfigResult, scheme: Scheme, scene: Sce
       border: `${l.border_width}px solid ${color(on ? 'hilited_candidate_border_color' : 'candidate_border_color')}`,
     });
     candidate.append(surface);
-    if (on && color('hilited_mark_color').slice(-2) !== '00') {
+    if (on && markEnabled) {
       const mark = element('span', s.mark_text ? 'ime-mark-text' : 'ime-mark', s.mark_text);
       mark.setAttribute('aria-hidden', 'true');
       if (s.mark_text) mark.style.color = color('hilited_mark_color');
