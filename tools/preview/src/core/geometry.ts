@@ -5,6 +5,13 @@ export const LAYOUT_BASIS = 'weasel-0.17.4' as const;
 export interface RoundShape { radius: number; corners: [boolean, boolean, boolean, boolean]; hemispherical: boolean }
 export interface Size { width: number; height: number }
 export interface Rect extends Size { x: number; y: number }
+/** Uniform text layout and browser glyph offsets, all in device pixels. */
+export interface TextTypography extends Size {
+  lineHeight: number; baseline: number;
+  overhang: { left: number; right: number; top: number; bottom: number };
+  lines: { text: string; rect: Rect; offset: { x: number; y: number } }[];
+}
+export interface TextMeasurement extends Size { typography?: TextTypography }
 export type TextRole = 'text' | 'label' | 'comment' | 'preedit';
 export interface TextRun { text: string; role: TextRole; rect: Rect; highlighted?: boolean }
 export interface CandidateGeometry {
@@ -18,4 +25,6 @@ export interface PreviewGeometry extends Size {
   pages: { previous: Rect; next: Rect } | null;
   mark: { rect: Rect; text: string } | null;
 }
-export type MeasureText = (text: string, role: TextRole) => Size;
+/** Within a render, identical text/role requests must return stable measurements.
+ * Layout and paint planning share this seam; adapters may cache results. */
+export type MeasureText = (text: string, role: TextRole) => TextMeasurement;

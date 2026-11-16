@@ -60,3 +60,25 @@ test('pager colors and inline preedit are resolved before the DOM adapter', () =
   const inline = buildRenderPlan({ ...input, style: { ...config.style, inline_preedit: true } }, measure);
   assert.equal(inline.preedit, null); assert.equal(inline.editorText, scene.preedit);
 });
+
+test('text placement is complete in the plan for candidates, preedit, pages and custom marks', () => {
+  const config = resolveConfig(source, defaults);
+  for (const vertical of [false, true]) {
+    const plan = buildRenderPlan({ style: { ...config.style, vertical_text: vertical, mark_text: '●' },
+      scheme: { ...config.schemes.paint, colors: { ...config.schemes.paint.colors, hilited_mark_color: '#0078d4ff' } }, scene },
+    () => ({ width: 30, height: 40, typography: {
+      width: 20, height: 24, lineHeight: 24, baseline: 18,
+      overhang: { left: 3, right: 0, top: 4, bottom: 0 },
+      lines: [{ text: 'glyph', rect: { x: 0, y: 0, width: 20, height: 24 }, offset: { x: 2, y: -1 } }],
+    } }));
+    const runs = [...plan.candidates.flatMap((c) => c.texts), ...plan.preedit!.texts, ...plan.preedit!.pages, plan.mark!];
+    assert.ok(runs.length > 5);
+    for (const run of runs) {
+      const line = run.lines![0];
+      assert.equal(line.rect.x, vertical ? (run.rect.width - 20) / 2 + 2 : 5);
+      assert.equal(line.rect.y, vertical ? 3 : (run.rect.height - 24) / 2 - 1);
+      assert.equal(line.lineHeight, 24);
+      assert.equal(line.text, 'glyph');
+    }
+  }
+});

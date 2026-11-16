@@ -1,7 +1,7 @@
 import type { Rect } from '../core/geometry';
-import type { PlannedText, RenderPlan } from '../core/render-plan';
+import type { PlannedLine, PlannedText, RenderPlan } from '../core/render-plan';
 import { borderRadius, shadowSurface } from './surface';
-import { applyFont } from './measurement';
+import { applyFont } from './font';
 
 const element = (tag: string, className: string, text?: string) => {
   const node = document.createElement(tag); node.className = className;
@@ -37,12 +37,23 @@ export function paintCandidate(plan: RenderPlan, scheme: string, scene: string):
     backgrounds.append(surface);
   }
   const content = element('div', 'ime-content');
+  const glyphs = (node: HTMLElement, lines: PlannedLine[]) => {
+    node.textContent = '';
+    node.style.alignContent = 'normal';
+    for (const line of lines) {
+      const child = element('span', 'ime-line', line.text);
+      place(child, line.rect);
+      child.style.lineHeight = px(line.lineHeight);
+      node.append(child);
+    }
+  };
   const textNode = (item: PlannedText, relative?: Rect) => {
     const node = element('span', `ime-${item.kind}`, item.text);
     applyFont(node, fonts[item.role]); place(node, item.rect, relative);
     Object.assign(node.style, { color: item.color, writingMode: plan.writingMode, textOrientation: 'mixed',
       ...(plan.wrap ? { whiteSpace: 'pre-wrap', overflowWrap: 'normal', wordBreak: 'normal' } : {}),
     });
+    if (item.lines) glyphs(node, item.lines);
     return node;
   };
   if (plan.preedit) {
@@ -62,7 +73,10 @@ export function paintCandidate(plan: RenderPlan, scheme: string, scene: string):
       const { mark } = plan;
       const node = element('span', mark.text ? 'ime-mark-text' : 'ime-mark', mark.text);
       node.setAttribute('aria-hidden', 'true'); place(node, mark.rect, item.bounds);
-      if (mark.text) { applyFont(node, fonts.text); node.style.color = mark.color; node.style.writingMode = plan.writingMode; }
+      if (mark.text) {
+        applyFont(node, fonts.text); node.style.color = mark.color; node.style.writingMode = plan.writingMode;
+        if (mark.lines) glyphs(node, mark.lines);
+      }
       else { node.style.backgroundColor = mark.color; node.style.borderRadius = px(mark.radius); }
       candidate.append(node);
     }

@@ -10,6 +10,7 @@
 .ime-label, .ime-text, .ime-comment, .ime-preedit-plain, .ime-preedit-highlight, .ime-page { z-index: 2; align-content: center; }
 .ime-mark, .ime-mark-text { position: absolute; white-space: pre; z-index: 1; }
 .ime-mark-text { z-index: 3; }
+.ime-line { position: absolute; white-space: pre; writing-mode: inherit; color: inherit; font: inherit; text-orientation: mixed; }
 .ime-measure { position: fixed; left: -100000px; top: 0; display: inline-block; width: max-content; visibility: hidden; margin: 0; padding: 0; border: 0; white-space: pre; }
 .ime-editorline { font: 15px/1.6 'Noto Sans CJK SC', 'Microsoft YaHei UI', sans-serif; color: var(--editor-ink, #555e6d); }
 .ime-inline-composition { text-decoration: underline; text-underline-offset: 4px; }

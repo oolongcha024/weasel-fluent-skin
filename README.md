@@ -44,7 +44,7 @@ pnpm install
 pnpm dev
 ```
 
-打开终端显示的访问地址，编辑 [skins/fluent-2/weasel.custom.yaml](skins/fluent-2/weasel.custom.yaml) 即可实时预览。默认仅本机访问，端口自动分配；远程开发通过 `--host` 指定监听地址，需要固定端口时使用 `--port`，详见[开发说明](docs/development.md#监听地址与端口)。场景由 [previews/scenes.json](previews/scenes.json) 定义，覆盖日常输入、长词与混排、特殊字符。
+打开终端显示的访问地址，编辑 [skins/fluent-2/weasel.custom.yaml](skins/fluent-2/weasel.custom.yaml) 即可实时预览。默认仅本机访问，端口自动分配；远程开发通过 `--host` 指定监听地址，需要固定端口时使用 `--port`，详见[开发说明](docs/development.md#监听地址与端口)。场景由 [previews/scenes.json](previews/scenes.json) 定义，覆盖日常输入、长词与混排、特殊字符及有无 emoji 的行高对照。
 
 生成浅色、深色与全部场景的检查产物：
 

@@ -57,6 +57,7 @@ struct Base {
   int candidates_count = 0, id = 0, labelFontValid = 1;
   int textFontValid = 1, cmtFontValid = 1, real_margin_x = 0, real_margin_y = 0;
   int offsetX = 0, offsetY = 0, mark_width = 4, mark_height = 0, mark_gap = 8;
+  int measurements[3][2] = {{16, 20}, {6, 14}, {8, 12}};
   CRect _candidateRects[100], _candidateLabelRects[100];
   CRect _candidateTextRects[100], _candidateCommentRects[100];
   CRect _preeditRect, _auxiliaryRect, _highlightRect, _contentRect, _bgRect;
@@ -77,8 +78,7 @@ struct Base {
       out->SetSize(0, 0);
       return;
     }
-    int width = role == 1 ? 6 : role == 2 ? 8 : 16;
-    int height = role == 1 ? 14 : role == 2 ? 12 : 20;
+    int width = measurements[role][0], height = measurements[role][1];
     out->SetSize(text.size() * width, height);
   }
   CSize GetPreeditSize(int, Text& text, int role, PDWR resources) {
@@ -113,7 +113,8 @@ void readCase(Base& base) {
       >> style.hilite_padding_x >> style.hilite_padding_y
       >> style.min_width >> style.min_height >> style.max_width >> style.max_height
       >> style.border >> style.shadow_radius >> style.shadow_offset_x
-      >> style.shadow_offset_y >> style.align_type;
+      >> style.shadow_offset_y >> style.align_type >> style.linespacing >> style.baseline;
+  for (auto& metric : base.measurements) cin >> metric[0] >> metric[1];
   int mark, page;
   string preedit;
   cin >> mark >> page >> preedit;

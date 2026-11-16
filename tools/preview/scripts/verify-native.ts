@@ -33,14 +33,13 @@ try {
   if (compile.error || compile.status !== 0) throw new Error(`编译原生对照失败（需要 C++17 编译器）：${compile.error?.message ?? compile.stderr}`);
   const defaults = readYaml(await readFile(join(TOOL_ROOT, 'data/weasel-defaults.yaml'), 'utf8')).data;
   const config = resolveConfig('patch: {}', defaults);
-  const cases = nativeCases(config.style, config.schemes.aqua.colors, reference.cases, reference.seed);
+  const cases = nativeCases(config.style, config.schemes.aqua.colors, reference.cases, reference.seed, reference);
   const run = spawnSync(executable, { input: cases.map((c) => c.input).join('\n'), encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 });
   if (run.error || run.status !== 0) throw new Error(`运行原生对照失败：${run.error?.message ?? run.stderr}`);
   const native: NativeRectangles[] = run.stdout.trim().split('\n').map((line) => JSON.parse(line));
   if (native.length !== cases.length) throw new Error('原生输出数量与输入数量不一致。');
-  const measure = fixedMeasurement(reference.measurements);
   const failures = cases.flatMap((fixture, index) => {
-    const actual = visibleRectangles(calculateLayout(fixture.style, fixture.colors, fixture.scene, measure), fixture);
+    const actual = visibleRectangles(calculateLayout(fixture.style, fixture.colors, fixture.scene, fixedMeasurement(fixture.measurements)), fixture);
     const expected = visibleRectangles(native[index], fixture);
     return isDeepStrictEqual(actual, expected) ? [] : [{ index, fixture, expected, actual }];
   });

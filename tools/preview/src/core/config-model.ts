@@ -11,6 +11,8 @@ export interface Layout<Units extends 'logical' | 'device' = 'logical'> {
   hilite_padding_x: number; hilite_padding_y: number;
   corner_radius: number; round_corner: number;
   shadow_radius: number; shadow_offset_x: number; shadow_offset_y: number;
+  /** Font-size percentages, unchanged by device scaling. Both must be nonzero. */
+  linespacing: number; baseline: number;
   align_type: 'top' | 'center' | 'bottom';
 }
 export interface Style {

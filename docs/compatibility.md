@@ -19,6 +19,8 @@
 
 浏览器日常预览使用自身 DPR。`pnpm capture --dpr 1.5` 可检查对应 150% 缩放的设备像素布局，仍不能模拟 Windows 的 DirectWrite 字体度量与全部原生绘制。
 
+预览支持 `style/layout/linespacing` 和 `style/layout/baseline`，按原生的字号百分比、两项非零启用条件和文字竖排规则计算；用有无 emoji 的行高对照场景观察窗口尺寸变化。字形越界留白依赖浏览器字体测量，文字竖排的字形边界使用近似值，仍需实机检查。参数和报告格式见[工具说明](../tools/preview/README.md#行高与基线)。
+
 ## 展示图片
 
 README 中的浅色、深色图片来自 Linux Chromium，使用正式 YAML、日常输入场景、DPR 1.5 和 100% 预览缩放。它们展示浏览器仿真结果；完整运行产物保存在本地 `artifacts/` 中，不随仓库提交。

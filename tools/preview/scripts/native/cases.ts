@@ -2,10 +2,11 @@ import type { Colors, Style } from '../../src/core/config-model';
 import type { Scene } from '../../src/core/scenes';
 import type { MeasureText, Rect, PreviewGeometry } from '../../src/core/geometry';
 
-export interface NativeCase { type: number; style: Style; colors: Colors; scene: Scene; input: string }
+export interface NativeCase { type: number; style: Style; colors: Colors; scene: Scene; input: string; measurements: Record<string, number[]> }
 export interface NativeRectangles { width: number; height: number; preedit: number[]; candidates: { bounds: number[]; label: number[]; text: number[]; comment: number[] }[] }
 
-export function nativeCases(base: Style, baseColors: Colors, count: number, seed: number): NativeCase[] {
+export function nativeCases(base: Style, baseColors: Colors, count: number, seed: number,
+  reference: { measurements: Record<string, number[]>; largeMeasurements: Record<string, number[]>; uniformSettings: number[][] }): NativeCase[] {
   const rand = (n: number) => Math.floor(((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296) * n);
   return Array.from({ length: count }, (_, k) => {
     const type = Math.min(k % 4, 2), wrap = k % 4 === 3;
@@ -21,11 +22,15 @@ export function nativeCases(base: Style, baseColors: Colors, count: number, seed
     const scene: Scene = { id: 'reference', name: 'Reference', preedit: 'abcd', highlighted: 0,
       candidates: Array.from({ length: rand(4) + 1 }, (_, i) => ({ text: 'x'.repeat(rand(4) + 1), label: String(i + 1), ...(rand(2) ? { comment: 'c'.repeat(rand(4) + 1) } : {}) })) };
     scene.highlighted = rand(scene.candidates.length);
+    [l.linespacing, l.baseline] = reference.uniformSettings[k % reference.uniformSettings.length];
+    const measurements = k % 5 ? reference.measurements : reference.largeMeasurements;
     const input = [type, scene.candidates.length, scene.highlighted, +style.inline_preedit, +style.vertical_text_left_to_right, +style.vertical_text_with_wrap,
       +!!style.label_font_point, +!!style.comment_font_point, l.margin_x, l.margin_y, l.spacing, l.candidate_spacing, l.hilite_spacing, l.hilite_padding_x, l.hilite_padding_y,
       l.min_width, l.min_height, l.max_width, l.max_height, l.border_width, l.shadow_radius, l.shadow_offset_x, l.shadow_offset_y,
-      ['top', 'center', 'bottom'].indexOf(l.align_type), +mark, +page, scene.preedit, ...scene.candidates.flatMap((c) => [c.label, c.text, c.comment ?? '-'])].join(' ');
-    return { type, style, colors, scene, input };
+      ['top', 'center', 'bottom'].indexOf(l.align_type), l.linespacing, l.baseline,
+      ...['text', 'label', 'comment'].flatMap((role) => measurements[role]),
+      +mark, +page, scene.preedit, ...scene.candidates.flatMap((c) => [c.label, c.text, c.comment ?? '-'])].join(' ');
+    return { type, style, colors, scene, input, measurements };
   });
 }
 export function fixedMeasurement(metrics: Record<string, number[]>): MeasureText {

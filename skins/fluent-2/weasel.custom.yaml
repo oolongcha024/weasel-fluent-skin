@@ -16,6 +16,8 @@ patch:
     mark_text: ""
     label_format: "%s"
     layout:
+      linespacing: 140
+      baseline: 100
       min_width: 0
       border_width: 1
       margin_x: 10

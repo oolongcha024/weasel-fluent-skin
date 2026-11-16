@@ -1,16 +1,16 @@
 import type { Style } from '../core/config-model';
-import type { MeasureText } from '../core/geometry';
-import { textStyles, type TextStyles } from '../core/render-plan';
+import type { MeasureText, TextMeasurement } from '../core/geometry';
+import { textStyles } from '../core/render-plan';
+import { applyFont } from './font';
+import { measureUniformText } from './uniform';
 
-export function applyFont(node: HTMLElement, font: TextStyles['text']) {
-  Object.assign(node.style, { fontFamily: font.css, fontWeight: String(font.weight), fontStyle: font.style, fontSize: `${font.point}pt` });
-}
 /** Browser adapter at the same measurement seam used by native-reference fixtures. */
 export function withMeasurements<T>(style: Style, density: number, build: (measure: MeasureText) => T): T {
   const fonts = textStyles(style);
   const probe = document.createElement('span'); probe.className = 'ime-measure';
   document.body.append(probe);
-  const cache = new Map<string, { width: number; height: number }>();
+  const cache = new Map<string, TextMeasurement>();
+  let canvas: CanvasRenderingContext2D | null = null;
   const vertical = style.vertical_text;
   const measure: MeasureText = (text, role) => {
     const key = `${role}:${text}`;
@@ -21,6 +21,11 @@ export function withMeasurements<T>(style: Style, density: number, build: (measu
       maxWidth: !vertical && limit ? `${Math.trunc(limit * density) / density}px` : 'none',
       maxHeight: vertical && limit ? `${Math.trunc(limit * density) / density}px` : 'none',
       whiteSpace: limit ? 'pre-wrap' : 'pre', overflowWrap: 'normal', wordBreak: 'normal' });
+    if (fonts[role].lineMetrics) {
+      canvas ??= document.createElement('canvas').getContext('2d')!;
+      const size = measureUniformText(probe, text, fonts[role], density, vertical, !style.vertical_text_left_to_right, canvas);
+      cache.set(key, size); return size;
+    }
     probe.textContent = text || '\u200b';
     const box = probe.getBoundingClientRect();
     const range = document.createRange(); range.selectNodeContents(probe);

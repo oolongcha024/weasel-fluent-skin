@@ -17,7 +17,7 @@ const STYLE_RUNTIME = {
     margin_x: 0, margin_y: 0, border_width: 0, spacing: 0, candidate_spacing: 0,
     hilite_spacing: 0, hilite_padding_x: 0, hilite_padding_y: 0,
     corner_radius: 0, round_corner: 0, shadow_radius: 0,
-    shadow_offset_x: 0, shadow_offset_y: 0, align_type: 'bottom',
+    shadow_offset_x: 0, shadow_offset_y: 0, align_type: 'bottom', linespacing: 0, baseline: 0,
   },
 } as const;
 
@@ -172,7 +172,7 @@ export function resolveConfig(source: string, defaults: Dict): ConfigResult {
   const supported = new Set(Object.keys(flatten({ style: STYLE_RUNTIME })));
   for (const k of ['color_scheme', 'color_scheme_dark', 'text_orientation', 'layout/type', 'layout/border', 'layout/hilite_padding', 'layout/hilited_corner_radius']) supported.add(`style/${k}`);
   const behaviorOnly = new Set(['display_tray_icon', 'ascii_tip_follow_cursor', 'enhanced_position', 'paging_on_scroll', 'click_to_capture', 'hover_type']);
-  const inactiveUnsupported = new Set(['style/fullscreen', 'style/vertical_auto_reverse', 'style/layout/linespacing', 'style/layout/baseline']);
+  const inactiveUnsupported = new Set(['style/fullscreen', 'style/vertical_auto_reverse']);
   for (const [path, value] of Object.entries(values)) {
     if (origins[path] !== 'user') continue;
     const inactive = inactiveUnsupported.has(path) && ['false', '0', '', false, 0, null].includes(value as never);

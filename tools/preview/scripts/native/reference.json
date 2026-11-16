@@ -3,6 +3,8 @@
   "version": "0.17.4",
   "seed": 73421,
   "cases": 1200,
+  "uniformSettings": [[0, 0], [140, 100], [140, 0], [0, 100], [200, 110], [80, 70]],
+  "largeMeasurements": { "text": [16, 140], "preedit": [16, 140], "label": [6, 14], "comment": [8, 12] },
   "measurements": {
     "text": [
       16,

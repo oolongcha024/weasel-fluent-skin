@@ -75,5 +75,45 @@
         "text": "Rime / 中州韵"
       }
     ]
+  },
+  {
+    "id": "height-plain",
+    "name": "行高对照 · 无 emoji",
+    "preedit": "chun ri",
+    "highlightedPreedit": "chun",
+    "highlighted": 0,
+    "candidates": [
+      {
+        "text": "春日",
+        "comment": "chūn rì"
+      },
+      {
+        "text": "春雨",
+        "comment": "chūn yǔ"
+      },
+      {
+        "text": "春风"
+      }
+    ]
+  },
+  {
+    "id": "height-emoji",
+    "name": "行高对照 · 有 emoji",
+    "preedit": "chun ri",
+    "highlightedPreedit": "chun",
+    "highlighted": 0,
+    "candidates": [
+      {
+        "text": "春日 🌿",
+        "comment": "chūn rì"
+      },
+      {
+        "text": "春雨",
+        "comment": "chūn yǔ"
+      },
+      {
+        "text": "春风"
+      }
+    ]
   }
 ]

@@ -18,7 +18,7 @@ const visible = (color: string) => color.slice(-2) !== '00';
  */
 export function scaleLayout(layout: Layout, density: number): DeviceLayout {
   return Object.fromEntries(Object.entries(layout).map(([key, value]) => [key,
-    typeof value === 'number' ? Math.trunc(value * density) : value])) as unknown as DeviceLayout;
+    typeof value === 'number' && key !== 'baseline' && key !== 'linespacing' ? Math.trunc(value * density) : value])) as unknown as DeviceLayout;
 }
 
 export function calculateLayout(style: Style, colors: Colors, scene: Scene, measure: MeasureText, density = 1): PreviewGeometry {
@@ -27,9 +27,12 @@ export function calculateLayout(style: Style, colors: Colors, scene: Scene, meas
   const vertical = style.vertical_text;
   const markerSize = measure(style.mark_text || '|', 'text');
   const markerOn = visible(colors.hilited_mark_color);
-  const thickness = markerOn && !style.mark_text ? Math.max(6, Math.trunc((vertical ? markerSize.width : markerSize.height) / 7)) : 0;
+  let thickness = Math.trunc((vertical ? markerSize.width : markerSize.height) / 7);
+  if (l.linespacing && l.baseline) thickness = Math.trunc(thickness / (l.linespacing / 100));
+  thickness = markerOn && !style.mark_text ? Math.max(6, thickness) : 0;
   const markerAdvance = !markerOn ? 0 : style.mark_text ? (vertical ? markerSize.height : markerSize.width) + l.hilite_spacing : thickness;
-  const run = (text: string, role: TextRole, x = 0, y = 0): TextRun => ({ text, role, rect: { x, y, ...measure(text, role) } });
+  const size = (text: string, role: TextRole) => { const { width, height } = measure(text, role); return { width, height }; };
+  const run = (text: string, role: TextRole, x = 0, y = 0): TextRun => ({ text, role, rect: { x, y, ...size(text, role) } });
   const { text: preeditText, highlight } = preeditContent(style, scene);
   const highlightIndex = highlight ? preeditText.indexOf(highlight) : -1;
   const preeditRuns: TextRun[] = [];
@@ -45,7 +48,7 @@ export function calculateLayout(style: Style, colors: Colors, scene: Scene, meas
       // 0.17.4 GetPreeditSize passes range.end as substr's LENGTH, whereas the
       // painter uses end-start. Preserve its allocation even with a prefix.
       if (item.highlighted && highlightIndex > 0) Object.assign(item.rect,
-        measure(preeditText.slice(highlightIndex, 2 * highlightIndex + part.text.length), 'preedit'));
+        size(preeditText.slice(highlightIndex, 2 * highlightIndex + part.text.length), 'preedit'));
       preeditRuns.push(item);
       if (vertical) { preeditWidth = Math.max(preeditWidth, item.rect.width); preeditHeight += item.rect.height + (part.gap ? l.hilite_spacing : 0); }
       else { preeditWidth += item.rect.width + (part.gap ? l.hilite_spacing : 0); preeditHeight = Math.max(preeditHeight, item.rect.height); }

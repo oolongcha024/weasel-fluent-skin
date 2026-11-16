@@ -1,3 +1,5 @@
+import type { Layout } from './config-model';
+
 /** Translate the family/weight/style part; Unicode ranges are diagnosed by the parser. */
 export function fontSpec(raw: string) {
   const families = raw.split(/[,，]/).map((s) => s.trim().split(':')[0]).filter(Boolean);
@@ -14,5 +16,13 @@ export function fontSpec(raw: string) {
   const style = last(/:(italic|oblique|normal)/gi) ?? 'normal';
   const hasRanges = raw.split(',').some((f) => f.split(':').slice(1).some((part) => /^[\da-f]+$/i.test(part.trim())));
   return { families, css, weight, style, hasRanges };
+}
+
+/** DirectWriteResources::InitResources, in logical CSS pixels (96 dpi). */
+export function uniformLineMetrics(layout: Layout, point: number, vertical: boolean) {
+  if (!layout.linespacing || !layout.baseline || point <= 0) return null;
+  const em = point * 96 / 72;
+  return { height: em * layout.linespacing / 100,
+    baseline: em * (vertical ? layout.linespacing / 2 : layout.baseline) / 100 };
 }
 
