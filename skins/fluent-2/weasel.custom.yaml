@@ -5,9 +5,9 @@ patch:
   "style/+":
     color_scheme: fluent_light
     color_scheme_dark: fluent_dark
-    font_face: "Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    font_face: "Segoe UI Emoji, Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     label_font_face: "Segoe UI, Noto Sans, sans-serif"
-    comment_font_face: "Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+    comment_font_face: "Segoe UI Emoji, Microsoft YaHei UI, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
     font_point: 12
     label_font_point: 9
     comment_font_point: 9
